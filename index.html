@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliações Google - Óticas Idealize</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --laranja:#FF6B1A;
+    --laranja-claro:#FFA366;
+    --laranja-escuro:#E55A0F;
+    --bg:#0F1419;
+    --card:#1A2028;
+    --card-hover:#222932;
+    --texto:#E8EAED;
+    --texto-secundario:#9AA0A6;
+    --borda:#2A323D;
+    --sucesso:#34A853;
+    --erro:#EA4335;
+    --aviso:#FBBC04;
+  }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg); color:var(--texto); min-height:100vh;
+  }
+  .container { max-width:1400px; margin:0 auto; padding:20px; }
+  
+  /* Header */
+  header {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:20px 0; border-bottom:1px solid var(--borda); margin-bottom:24px;
+  }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-icon {
+    width:44px; height:44px; background:linear-gradient(135deg,var(--laranja),var(--laranja-escuro));
+    border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+  }
+  .logo h1 { font-size:20px; font-weight:600; }
+  .logo p { font-size:12px; color:var(--texto-secundario); }
+  
+  /* Tabs */
+  .tabs {
+    display:flex; gap:4px; background:var(--card); padding:4px;
+    border-radius:10px; margin-bottom:24px; overflow-x:auto;
+  }
+  .tab-btn {
+    flex:1; min-width:140px; padding:10px 16px; background:transparent;
+    border:none; color:var(--texto-secundario); cursor:pointer;
+    border-radius:8px; font-size:14px; font-weight:500;
+    transition:all 0.2s; white-space:nowrap;
+  }
+  .tab-btn:hover { background:var(--card-hover); color:var(--texto); }
+  .tab-btn.active { background:var(--laranja); color:white; }
+  
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+  
+  /* Cards */
+  .card {
+    background:var(--card); border-radius:12px; padding:20px;
+    border:1px solid var(--borda); margin-bottom:16px;
+  }
+  .card h2 { font-size:16px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+  
+  /* Grid KPIs */
+  .kpi-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:12px; margin-bottom:20px;
+  }
+  .kpi {
+    background:var(--card); padding:16px; border-radius:10px;
+    border:1px solid var(--borda); border-left:3px solid var(--laranja);
+  }
+  .kpi-label { font-size:11px; color:var(--texto-secundario); text-transform:uppercase; letter-spacing:0.5px; }
+  .kpi-value { font-size:26px; font-weight:700; margin-top:4px; }
+  .kpi-sub { font-size:11px; color:var(--texto-secundario); margin-top:2px; }
+  
+  /* Form */
+  .form-grupo { margin-bottom:14px; }
+  .form-grupo label {
+    display:block; font-size:12px; color:var(--texto-secundario);
+    margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .form-grupo input, .form-grupo select, .form-grupo textarea {
+    width:100%; padding:10px 12px; background:var(--bg);
+    border:1px solid var(--borda); border-radius:8px;
+    color:var(--texto); font-size:14px; font-family:inherit;
+  }
+  .form-grupo input:focus, .form-grupo select:focus, .form-grupo textarea:focus {
+    outline:none; border-color:var(--laranja);
+  }
+  .form-grupo textarea { resize:vertical; min-height:90px; }
+  
+  .form-linha { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  
+  /* Botões */
+  .btn {
+    padding:10px 18px; border:none; border-radius:8px; cursor:pointer;
+    font-size:14px; font-weight:500; transition:all 0.2s;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn-primary { background:var(--laranja); color:white; }
+  .btn-primary:hover { background:var(--laranja-escuro); }
+  .btn-primary:disabled { background:var(--borda); cursor:not-allowed; opacity:0.6; }
+  .btn-secondary { background:var(--card-hover); color:var(--texto); border:1px solid var(--borda); }
+  .btn-secondary:hover { background:var(--borda); }
+  .btn-danger { background:var(--erro); color:white; }
+  
+  /* Estrelas seletor */
+  .estrelas-select { display:flex; gap:4px; }
+  .estrela {
+    font-size:28px; cursor:pointer; color:var(--borda);
+    transition:color 0.2s;
+  }
+  .estrela.ativa { color:#FBBC04; }
+  
+  /* Resultado IA */
+  .resultado-ia {
+    background:linear-gradient(135deg,rgba(255,107,26,0.1),rgba(229,90,15,0.05));
+    border:1px solid var(--laranja);
+    border-radius:10px; padding:16px; margin-top:16px;
+  }
+  .resultado-ia h3 {
+    font-size:13px; color:var(--laranja); text-transform:uppercase;
+    letter-spacing:0.5px; margin-bottom:10px;
+  }
+  .resposta-gerada {
+    background:var(--bg); padding:12px; border-radius:8px;
+    border:1px solid var(--borda); font-size:14px; line-height:1.5;
+    white-space:pre-wrap; margin-bottom:10px;
+  }
+  .badge-consultor {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(52,168,83,0.15); color:var(--sucesso);
+    padding:6px 12px; border-radius:20px; font-size:13px; font-weight:500;
+    border:1px solid rgba(52,168,83,0.3);
+  }
+  .badge-consultor.baixa { background:rgba(251,188,4,0.15); color:var(--aviso); border-color:rgba(251,188,4,0.3); }
+  .badge-consultor.nenhum { background:rgba(154,160,166,0.15); color:var(--texto-secundario); border-color:var(--borda); }
+  
+  /* Tabela */
+  .tabela-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--borda); font-size:13px; }
+  th { color:var(--texto-secundario); font-weight:500; text-transform:uppercase; font-size:11px; letter-spacing:0.5px; }
+  tr:hover td { background:var(--card-hover); }
+  
+  .estrelas-display { color:#FBBC04; }
+  
+  /* Status badges */
+  .status {
+    padding:3px 8px; border-radius:12px; font-size:11px; font-weight:500;
+    text-transform:uppercase; letter-spacing:0.3px;
+  }
+  .status-pendente { background:rgba(251,188,4,0.15); color:var(--aviso); }
+  .status-respondida { background:rgba(52,168,83,0.15); color:var(--sucesso); }
+  .status-ignorada { background:rgba(154,160,166,0.15); color:var(--texto-secundario); }
+  
+  /* Loading */
+  .loading {
+    display:inline-block; width:14px; height:14px;
+    border:2px solid var(--borda); border-top-color:var(--laranja);
+    border-radius:50%; animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  
+  /* Toast */
+  .toast {
+    position:fixed; top:20px; right:20px; padding:14px 20px;
+    background:var(--card); border:1px solid var(--borda); border-radius:8px;
+    border-left:4px solid var(--sucesso); z-index:1000;
+    animation:slideIn 0.3s; max-width:320px;
+  }
+  .toast.erro { border-left-color:var(--erro); }
+  .toast.aviso { border-left-color:var(--aviso); }
+  @keyframes slideIn { from { transform:translateX(400px); } to { transform:translateX(0); } }
+  
+  /* Chart container */
+  .chart-wrap { position:relative; height:300px; }
+  
+  /* Filtros */
+  .filtros {
+    display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;
+  }
+  .filtro-pill {
+    padding:6px 14px; background:var(--card); border:1px solid var(--borda);
+    border-radius:20px; cursor:pointer; font-size:13px; transition:all 0.2s;
+  }
+  .filtro-pill:hover { background:var(--card-hover); }
+  .filtro-pill.ativo { background:var(--laranja); border-color:var(--laranja); color:white; }
+  
+  /* Empty state */
+  .vazio {
+    text-align:center; padding:40px 20px; color:var(--texto-secundario);
+  }
+  .vazio-icon { font-size:48px; margin-bottom:12px; opacity:0.4; }
+  
+  @media (max-width:640px) {
+    .container { padding:12px; }
+    .kpi-value { font-size:20px; }
+    .tab-btn { font-size:12px; padding:8px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⭐</div>
+      <div>
+        <h1>Avaliações Google</h1>
+        <p>Óticas Idealize · Sistema com IA</p>
+      </div>
+    </div>
+    <button class="btn btn-secondary" onclick="abrirConfig()">⚙ Config</button>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="trocarTab('nova')">➕ Nova Avaliação</button>
+    <button class="tab-btn" onclick="trocarTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" onclick="trocarTab('ranking')">🏆 Ranking Consultores</button>
+    <button class="tab-btn" onclick="trocarTab('historico')">📋 Histórico</button>
+    <button class="tab-btn" onclick="trocarTab('google')">🔗 Google Auto</button>
+  </div>
+
+  <!-- TAB: NOVA AVALIAÇÃO -->
+  <div id="tab-nova" class="tab-content active">
+    <div class="card">
+      <h2>📝 Registrar Nova Avaliação</h2>
+      
+      <div class="form-linha">
+        <div class="form-grupo">
+          <label>Loja</label>
+          <select id="loja">
+            <option value="sao_vicente">São Vicente</option>
+            <option value="campinas">Campinas</option>
+            <option value="piracicaba">Piracicaba</option>
+            <option value="sorocaba">Sorocaba</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Nome do Cliente</label>
+          <input type="text" id="cliente-nome" placeholder="Como aparece no Google">
+        </div>
+        <div class="form-grupo">
+          <label>Avaliação (estrelas)</label>
+          <div class="estrelas-select" id="estrelas-select">
+            <span class="estrela" data-valor="1">★</span>
+            <span class="estrela" data-valor="2">★</span>
+            <span class="estrela" data-valor="3">★</span>
+            <span class="estrela" data-valor="4">★</span>
+            <span class="estrela" data-valor="5">★</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-grupo">
+        <label>Texto da Avaliação</label>
+        <textarea id="texto-avaliacao" placeholder="Cole aqui o texto da avaliação do Google..."></textarea>
+      </div>
+      
+      <button class="btn btn-primary" id="btn-processar" onclick="processarAvaliacao()">
+        ✨ Processar com IA
+      </button>
+      
+      <div id="resultado-area" style="display:none;" class="resultado-ia">
+        <h3>🤖 Análise da IA</h3>
+        <div id="consultor-detectado-area" style="margin-bottom:14px;"></div>
+        <div id="resposta-area" style="display:none;">
+          <h3 style="margin-top:14px;">💬 Resposta Sugerida</h3>
+          <div class="resposta-gerada" id="texto-resposta" contenteditable="true"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="copiarResposta()">📋 Copiar Resposta</button>
+            <button class="btn btn-secondary" onclick="regenerarResposta()">🔄 Gerar Outra</button>
+            <button class="btn btn-secondary" onclick="salvarComoRespondida()">✓ Marcar Respondida</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: DASHBOARD -->
+  <div id="tab-dashboard" class="tab-content">
+    <div class="filtros">
+      <span class="filtro-pill ativo" data-periodo="todos" onclick="filtrarDashboard('todos')">Todos</span>
+      <span class="filtro-pill" data-periodo="mes" onclick="filtrarDashboard('mes')">Este Mês</span>
+      <span class="filtro-pill" data-periodo="semana" onclick="filtrarDashboard('semana')">Esta Semana</span>
+      <span class="filtro-pill" data-periodo="hoje" onclick="filtrarDashboard('hoje')">Hoje</span>
+    </div>
+    
+    <div class="kpi-grid" id="kpis-dashboard"></div>
+    
+    <div class="card">
+      <h2>📈 Avaliações por Loja</h2>
+      <div class="chart-wrap"><canvas id="chart-lojas"></canvas></div>
+    </div>
+    
+    <div class="card">
+      <h2>⭐ Distribuição de Estrelas</h2>
+      <div class="chart-wrap"><canvas id="chart-estrelas"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TAB: RANKING -->
+  <div id="tab-ranking" class="tab-content">
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center;">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">📅 Período:</strong>
+      <span class="filtro-pill ativo" data-per-rank="mes_atual" onclick="filtrarRankingPeriodo('mes_atual')">Este Mês</span>
+      <span class="filtro-pill" data-per-rank="mes_passado" onclick="filtrarRankingPeriodo('mes_passado')">Mês Passado</span>
+      <span class="filtro-pill" data-per-rank="ultimos_7" onclick="filtrarRankingPeriodo('ultimos_7')">Últimos 7 dias</span>
+      <span class="filtro-pill" data-per-rank="ultimos_30" onclick="filtrarRankingPeriodo('ultimos_30')">Últimos 30 dias</span>
+      <span class="filtro-pill" data-per-rank="todos" onclick="filtrarRankingPeriodo('todos')">Todos</span>
+      <span class="filtro-pill" data-per-rank="custom" onclick="abrirDatasRankCustom()">🗓️ Período Custom</span>
+    </div>
+    <div id="datas-custom-rank" style="display:none; margin-bottom:12px; padding:12px; background:var(--card); border:1px solid var(--borda); border-radius:8px;">
+      <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+        <label style="color:var(--texto-secundario);">De: <input type="date" id="rank-data-inicio" style="background:var(--bg); color:var(--texto); border:1px solid var(--borda); padding:6px; border-radius:4px;"></label>
+        <label style="color:var(--texto-secundario);">Até: <input type="date" id="rank-data-fim" style="background:var(--bg); color:var(--texto); border:1px solid var(--borda); padding:6px; border-radius:4px;"></label>
+        <button class="btn btn-primary" onclick="aplicarDatasRankCustom()">Aplicar</button>
+      </div>
+    </div>
+    
+    <div class="filtros">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">🏪 Loja:</strong>
+      <span class="filtro-pill ativo" data-loja-rank="todas" onclick="filtrarRanking('todas')">Todas Lojas</span>
+      <span class="filtro-pill" data-loja-rank="sao_vicente" onclick="filtrarRanking('sao_vicente')">São Vicente</span>
+      <span class="filtro-pill" data-loja-rank="campinas" onclick="filtrarRanking('campinas')">Campinas</span>
+      <span class="filtro-pill" data-loja-rank="piracicaba" onclick="filtrarRanking('piracicaba')">Piracicaba</span>
+      <span class="filtro-pill" data-loja-rank="sorocaba" onclick="filtrarRanking('sorocaba')">Sorocaba</span>
+    </div>
+
+    <div id="rank-resumo-periodo" style="padding:14px; background:linear-gradient(135deg, rgba(255,107,26,0.1), rgba(255,163,102,0.05)); border:1px solid var(--laranja); border-radius:8px; margin-bottom:12px; color:var(--texto);"></div>
+    
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0;">🏆 Top Consultores Mencionados</h2>
+        <button class="btn btn-secondary" onclick="exportarRankingCSV()">📥 Exportar CSV</button>
+      </div>
+      <div class="chart-wrap" style="height:350px;"><canvas id="chart-ranking"></canvas></div>
+    </div>
+    
+    <div class="card">
+      <h2>📊 Tabela Detalhada</h2>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Consultor</th><th>Loja</th>
+              <th>Menções 5★</th><th>Total</th><th>Última</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-ranking"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: HISTÓRICO -->
+  <div id="tab-historico" class="tab-content">
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; align-items:center;">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">📅 Período:</strong>
+      <span class="filtro-pill ativo" data-hist-per="mes_atual" onclick="filtrarHistPeriodo('mes_atual')">Este Mês</span>
+      <span class="filtro-pill" data-hist-per="mes_passado" onclick="filtrarHistPeriodo('mes_passado')">Mês Passado</span>
+      <span class="filtro-pill" data-hist-per="ultimos_7" onclick="filtrarHistPeriodo('ultimos_7')">Últimos 7 dias</span>
+      <span class="filtro-pill" data-hist-per="ultimos_30" onclick="filtrarHistPeriodo('ultimos_30')">Últimos 30 dias</span>
+      <span class="filtro-pill" data-hist-per="todos" onclick="filtrarHistPeriodo('todos')">Todos</span>
+    </div>
+    <div class="filtros">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">🏪 Loja:</strong>
+      <span class="filtro-pill ativo" data-hist-loja="todas" onclick="filtrarHistLoja('todas')">Todas</span>
+      <span class="filtro-pill" data-hist-loja="sao_vicente" onclick="filtrarHistLoja('sao_vicente')">São Vicente</span>
+      <span class="filtro-pill" data-hist-loja="campinas" onclick="filtrarHistLoja('campinas')">Campinas</span>
+      <span class="filtro-pill" data-hist-loja="piracicaba" onclick="filtrarHistLoja('piracicaba')">Piracicaba</span>
+      <span class="filtro-pill" data-hist-loja="sorocaba" onclick="filtrarHistLoja('sorocaba')">Sorocaba</span>
+    </div>
+    <div class="filtros">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">⭐ Estrelas:</strong>
+      <span class="filtro-pill ativo" data-hist="todas" onclick="filtrarHistorico('todas')">Todas</span>
+      <span class="filtro-pill" data-hist="5" onclick="filtrarHistorico('5')">5★</span>
+      <span class="filtro-pill" data-hist="4" onclick="filtrarHistorico('4')">4★</span>
+      <span class="filtro-pill" data-hist="baixas" onclick="filtrarHistorico('baixas')">≤3★</span>
+      <span class="filtro-pill" data-hist="pendentes" onclick="filtrarHistorico('pendentes')">Pendentes</span>
+    </div>
+    
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0;">📋 Avaliações <span id="hist-contador" style="color:var(--texto-secundario); font-size:14px; font-weight:normal;"></span></h2>
+        <button class="btn btn-secondary" onclick="exportarHistoricoCSV()">📥 Exportar CSV</button>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th><th>Loja</th><th>Cliente</th>
+              <th>★</th><th>Texto</th><th>Consultor</th>
+              <th>Status</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-historico"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- TAB: GOOGLE AUTO -->
+  <div id="tab-google" class="tab-content">
+    
+    <!-- Status da Integração -->
+    <div class="card">
+      <h2>🔗 Status da Integração Google</h2>
+      <div id="google-status-area">
+        <div class="vazio">
+          <div class="vazio-icon">⏳</div>
+          Carregando status...
+        </div>
+      </div>
+    </div>
+
+    <!-- Aviso sobre Mock -->
+    <div class="card" style="border-left:4px solid var(--aviso);">
+      <h2>🎭 Modo de Operação</h2>
+      <div style="padding:8px 0;">
+        <p style="margin-bottom:12px; color:var(--texto-secundario); line-height:1.5;">
+          O sistema opera em <strong style="color:var(--aviso);">Modo Mock</strong> enquanto a Google Business Profile API não é aprovada.
+          Isso permite testar todo o fluxo (busca automática, detecção, geração de resposta) com avaliações fictícias.
+        </p>
+        <p style="color:var(--texto-secundario); line-height:1.5; font-size:13px;">
+          Quando o Google aprovar o acesso, basta desativar o modo Mock e configurar o ID da localização de cada loja.
+        </p>
+        <div id="modo-toggle-area" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
+    <!-- Conectar Google -->
+    <div class="card">
+      <h2>🔐 Conexão OAuth com Google</h2>
+      <p style="color:var(--texto-secundario); margin-bottom:14px; line-height:1.5;">
+        Conecte sua conta Google que é Owner/Manager das lojas no Google Meu Negócio.
+        O sistema vai usar essa conexão pra buscar avaliações e responder automaticamente.
+      </p>
+      <button class="btn btn-primary" onclick="conectarGoogle()">
+        🔗 Conectar Conta Google
+      </button>
+      <button class="btn btn-secondary" onclick="desconectarGoogle()" style="margin-left:8px;">
+        ❌ Desconectar
+      </button>
+    </div>
+
+    <!-- Mapeamento de Lojas -->
+    <div class="card">
+      <h2>🏪 Mapeamento de Lojas Google</h2>
+      <p style="color:var(--texto-secundario); margin-bottom:14px; line-height:1.5;">
+        Conecte cada loja física com seu perfil no Google Meu Negócio.
+        <strong style="color:var(--laranja);">Necessário para o modo REAL funcionar.</strong>
+      </p>
+      <button class="btn btn-primary" id="btn-detectar-lojas" onclick="detectarLojasGoogle()">
+        🔍 Detectar minhas lojas no Google
+      </button>
+      <button class="btn btn-secondary" onclick="abrirConfigManual()" style="margin-left:8px;">
+        ✏️ Configurar manualmente
+      </button>
+      
+      <div id="lojas-mapeamento-area" style="margin-top:16px;"></div>
+      <div id="config-manual-area" style="margin-top:16px; display:none;"></div>
+    </div>
+
+
+    <!-- Sincronização Manual -->
+    <div class="card">
+      <h2>🔄 Sincronização</h2>
+      <p style="color:var(--texto-secundario); margin-bottom:14px; line-height:1.5;">
+        Busca avaliações novas no Google e processa automaticamente (detecta consultor + gera resposta para 5★).
+      </p>
+      <button class="btn btn-primary" id="btn-sync" onclick="sincronizarAgora()">
+        ⚡ Sincronizar Agora
+      </button>
+      <button class="btn btn-secondary" onclick="enviarRespostasPendentes()" style="margin-left:8px;">
+        📤 Enviar Respostas Pendentes
+      </button>
+      
+      <div id="sync-resultado" style="margin-top:16px;"></div>
+    </div>
+
+    <!-- Log de Sincronizações -->
+    <div class="card">
+      <h2>📜 Últimas Sincronizações</h2>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Quando</th><th>Loja</th><th>Operação</th>
+              <th>Modo</th><th>Status</th><th>Detalhes</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-sync-log">
+            <tr><td colspan="6" class="vazio">Sem registros ainda</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+
+
+<script>
+// =====================================================
+// CONFIGURAÇÃO
+// =====================================================
+const SUPABASE_URL = 'https://zytgxvnadatttjpawqnn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5dGd4dm5hZGF0dHRqcGF3cW5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTU5MDEsImV4cCI6MjA5NTA3MTkwMX0.XF_IpdvAfg3gxo7iUS7SjT-PDF19Qv5T0xNOMJgc4A8';
+
+const LOJAS = {
+  sao_vicente: 'São Vicente',
+  campinas: 'Campinas',
+  piracicaba: 'Piracicaba',
+  sorocaba: 'Sorocaba'
+};
+
+// Lista de consultores (futuramente vai puxar da tabela usuarios)
+// Por ora, hardcoded com os nomes conhecidos
+const CONSULTORES = [
+  { canonico: 'Micheli', variantes: ['micheli', 'michele', 'mi'] },
+  { canonico: 'Rafael',  variantes: ['rafael', 'rafa'] },
+  { canonico: 'Victoria',variantes: ['victoria', 'vic', 'vitória', 'vitoria'] },
+  { canonico: 'Ivisson', variantes: ['ivisson', 'ivison', 'ivisom'] },
+  { canonico: 'Daynara', variantes: ['daynara', 'dainara', 'day'] },
+  { canonico: 'Hyago',   variantes: ['hyago', 'iago', 'yago'] },
+  { canonico: 'Ana Carla', variantes: ['ana carla', 'anacarla', 'ana c', 'ana'] }
+];
+
+let estrelaSelecionada = 5;
+let avaliacaoEmProcessamento = null;
+let charts = {};
+
+// =====================================================
+// HELPERS
+// =====================================================
+async function sb(endpoint, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...opts.headers
+    },
+    method: opts.method || 'GET',
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Supabase ${res.status}: ${txt}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function toast(msg, tipo = 'sucesso') {
+  const t = document.createElement('div');
+  t.className = `toast ${tipo === 'erro' ? 'erro' : tipo === 'aviso' ? 'aviso' : ''}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function fmtData(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+}
+
+function fmtDataCurta(iso) {
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
+
+function estrelasDisplay(n) {
+  return '★'.repeat(n) + '☆'.repeat(5-n);
+}
+
+// =====================================================
+// TABS
+// =====================================================
+function trocarTab(nome) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + nome).classList.add('active');
+  event.target.classList.add('active');
+  
+  if (nome === 'dashboard') carregarDashboard();
+  if (nome === 'ranking') carregarRanking();
+  if (nome === 'historico') carregarHistorico();
+  if (nome === 'google') { carregarStatusGoogle(); carregarLogSync(); }
+}
+
+// =====================================================
+// ESTRELAS
+// =====================================================
+document.querySelectorAll('.estrela').forEach(el => {
+  el.addEventListener('click', () => {
+    estrelaSelecionada = parseInt(el.dataset.valor);
+    document.querySelectorAll('.estrela').forEach(e => {
+      e.classList.toggle('ativa', parseInt(e.dataset.valor) <= estrelaSelecionada);
+    });
+  });
+});
+// inicializa com 5 estrelas
+document.querySelectorAll('.estrela').forEach(e => e.classList.add('ativa'));
+
+// =====================================================
+// DETECÇÃO DE CONSULTOR (via Edge Function)
+// =====================================================
+async function detectarConsultor(texto) {
+  const consultores = CONSULTORES.map(c => c.canonico);
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/detectar-consultor`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'apikey': SUPABASE_KEY
+    },
+    body: JSON.stringify({ texto, consultores })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Erro na detecção: ${err}`);
+  }
+  return res.json();
+}
+
+// =====================================================
+// GERAÇÃO DE RESPOSTA (via Edge Function)
+// =====================================================
+async function gerarResposta(avaliacao) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/gerar-resposta`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'apikey': SUPABASE_KEY
+    },
+    body: JSON.stringify({
+      texto: avaliacao.texto,
+      cliente_nome: avaliacao.cliente_nome,
+      loja: avaliacao.loja,
+      consultor_detectado: avaliacao.consultor_detectado
+    })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Erro ao gerar: ${err}`);
+  }
+  const data = await res.json();
+  return data.resposta;
+}
+
+// =====================================================
+// PROCESSAR NOVA AVALIAÇÃO
+// =====================================================
+async function processarAvaliacao() {
+  const loja = document.getElementById('loja').value;
+  const clienteNome = document.getElementById('cliente-nome').value.trim();
+  const texto = document.getElementById('texto-avaliacao').value.trim();
+  
+  if (!texto) {
+    toast('Cole o texto da avaliação primeiro', 'aviso');
+    return;
+  }
+  
+  const btn = document.getElementById('btn-processar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> Processando...';
+  
+  try {
+    // 1. Detectar consultor
+    const deteccao = await detectarConsultor(texto);
+    
+    // 2. Salvar avaliação
+    const avaliacao = await sb('avaliacoes', {
+      method: 'POST',
+      body: {
+        loja,
+        cliente_nome: clienteNome || null,
+        estrelas: estrelaSelecionada,
+        texto,
+        consultor_detectado: deteccao.consultor,
+        consultor_confianca: deteccao.confianca,
+        consultor_variantes: deteccao.variantes_encontradas || [],
+        origem: 'manual',
+        status: 'pendente'
+      }
+    });
+    avaliacaoEmProcessamento = avaliacao[0];
+    
+    // 3. Mostrar consultor detectado
+    const consultorArea = document.getElementById('consultor-detectado-area');
+    if (deteccao.consultor) {
+      const classe = deteccao.confianca >= 0.7 ? '' : 'baixa';
+      consultorArea.innerHTML = `
+        <span class="badge-consultor ${classe}">
+          👤 Consultor detectado: <strong>${deteccao.consultor}</strong>
+          (${Math.round(deteccao.confianca*100)}% confiança)
+        </span>
+      `;
+    } else {
+      consultorArea.innerHTML = `<span class="badge-consultor nenhum">⚪ Nenhum consultor específico mencionado</span>`;
+    }
+    
+    document.getElementById('resultado-area').style.display = 'block';
+    
+    // 4. Se for 5 estrelas, gerar resposta automaticamente
+    if (estrelaSelecionada === 5) {
+      btn.innerHTML = '<span class="loading"></span> Gerando resposta...';
+      const resposta = await gerarResposta(avaliacaoEmProcessamento);
+      
+      await sb('respostas_avaliacoes', {
+        method: 'POST',
+        body: {
+          avaliacao_id: avaliacaoEmProcessamento.id,
+          texto_resposta: resposta,
+          gerada_por_ia: true,
+          modelo_ia: 'claude-haiku-4-5'
+        }
+      });
+      
+      document.getElementById('texto-resposta').textContent = resposta;
+      document.getElementById('resposta-area').style.display = 'block';
+      toast('✨ Resposta gerada com IA!');
+    } else {
+      document.getElementById('resposta-area').style.display = 'none';
+      toast('Avaliação registrada (< 5★ não gera resposta automática)', 'aviso');
+    }
+    
+  } catch (e) {
+    console.error(e);
+    toast('Erro: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✨ Processar com IA';
+  }
+}
+
+async function regenerarResposta() {
+  if (!avaliacaoEmProcessamento) return;
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>';
+  try {
+    const resposta = await gerarResposta(avaliacaoEmProcessamento);
+    await sb('respostas_avaliacoes', {
+      method: 'POST',
+      body: {
+        avaliacao_id: avaliacaoEmProcessamento.id,
+        texto_resposta: resposta,
+        gerada_por_ia: true,
+        modelo_ia: 'claude-haiku-4-5'
+      }
+    });
+    document.getElementById('texto-resposta').textContent = resposta;
+    toast('🔄 Nova resposta gerada');
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔄 Gerar Outra';
+  }
+}
+
+function copiarResposta() {
+  const txt = document.getElementById('texto-resposta').textContent;
+  navigator.clipboard.writeText(txt);
+  toast('📋 Copiado! Cole no Google');
+}
+
+async function salvarComoRespondida() {
+  if (!avaliacaoEmProcessamento) return;
+  try {
+    await sb(`avaliacoes?id=eq.${avaliacaoEmProcessamento.id}`, {
+      method: 'PATCH',
+      body: { status: 'respondida' }
+    });
+    toast('✓ Marcada como respondida');
+    // Limpar form
+    document.getElementById('texto-avaliacao').value = '';
+    document.getElementById('cliente-nome').value = '';
+    document.getElementById('resultado-area').style.display = 'none';
+    avaliacaoEmProcessamento = null;
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+// =====================================================
+// DASHBOARD
+// =====================================================
+let filtroPeriodoDash = 'todos';
+function filtrarDashboard(p) {
+  filtroPeriodoDash = p;
+  document.querySelectorAll('[data-periodo]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.periodo === p);
+  });
+  carregarDashboard();
+}
+
+function dataInicioPeriodo(p) {
+  const agora = new Date();
+  if (p === 'hoje') {
+    const d = new Date(agora); d.setHours(0,0,0,0);
+    return d.toISOString();
+  }
+  if (p === 'semana') {
+    const d = new Date(agora); d.setDate(d.getDate() - 7);
+    return d.toISOString();
+  }
+  if (p === 'mes') {
+    const d = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    return d.toISOString();
+  }
+  return null;
+}
+
+async function carregarDashboard() {
+  try {
+    const inicio = dataInicioPeriodo(filtroPeriodoDash);
+    let query = 'avaliacoes?select=*';
+    if (inicio) query += `&data_avaliacao=gte.${inicio}`;
+    const avals = await sb(query);
+    
+    // KPIs
+    const total = avals.length;
+    const cinco = avals.filter(a => a.estrelas === 5).length;
+    const respondidas = avals.filter(a => a.status === 'respondida').length;
+    const media = total ? (avals.reduce((s,a)=>s+a.estrelas,0)/total).toFixed(2) : '0';
+    const pctCinco = total ? Math.round(cinco/total*100) : 0;
+    
+    document.getElementById('kpis-dashboard').innerHTML = `
+      <div class="kpi">
+        <div class="kpi-label">Total de Avaliações</div>
+        <div class="kpi-value">${total}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avaliações 5 Estrelas</div>
+        <div class="kpi-value">${cinco}</div>
+        <div class="kpi-sub">${pctCinco}% do total</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Respondidas</div>
+        <div class="kpi-value">${respondidas}</div>
+        <div class="kpi-sub">${total - respondidas} pendentes</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Média de Estrelas</div>
+        <div class="kpi-value">${media}</div>
+        <div class="kpi-sub">⭐ geral</div>
+      </div>
+    `;
+    
+    // Chart por loja
+    const porLoja = {};
+    Object.keys(LOJAS).forEach(k => porLoja[k] = 0);
+    avals.forEach(a => porLoja[a.loja] = (porLoja[a.loja]||0) + 1);
+    
+    if (charts.lojas) charts.lojas.destroy();
+    charts.lojas = new Chart(document.getElementById('chart-lojas'), {
+      type: 'bar',
+      data: {
+        labels: Object.values(LOJAS),
+        datasets: [{
+          label: 'Avaliações',
+          data: Object.keys(LOJAS).map(k => porLoja[k]),
+          backgroundColor: '#FF6B1A',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display:false } },
+        scales: {
+          y: { ticks:{color:'#9AA0A6'}, grid:{color:'#2A323D'} },
+          x: { ticks:{color:'#9AA0A6'}, grid:{display:false} }
+        }
+      }
+    });
+    
+    // Chart distribuição estrelas
+    const porEstrela = [1,2,3,4,5].map(n => avals.filter(a => a.estrelas === n).length);
+    if (charts.estrelas) charts.estrelas.destroy();
+    charts.estrelas = new Chart(document.getElementById('chart-estrelas'), {
+      type: 'bar',
+      data: {
+        labels: ['1★','2★','3★','4★','5★'],
+        datasets: [{
+          label: 'Qtd',
+          data: porEstrela,
+          backgroundColor: ['#EA4335','#EA4335','#FBBC04','#FBBC04','#34A853'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display:false } },
+        scales: {
+          y: { ticks:{color:'#9AA0A6'}, grid:{color:'#2A323D'} },
+          x: { ticks:{color:'#9AA0A6'}, grid:{display:false} }
+        }
+      }
+    });
+  } catch(e) {
+    toast('Erro ao carregar dashboard: ' + e.message, 'erro');
+  }
+}
+
+// =====================================================
+// RANKING
+// =====================================================
+let filtroLojaRank = 'todas';
+let filtroRankPeriodo = 'mes_atual';
+
+function filtrarRanking(l) {
+  filtroLojaRank = l;
+  document.querySelectorAll('[data-loja-rank]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.lojaRank === l);
+  });
+  carregarRanking();
+}
+
+function filtrarRankingPeriodo(p) {
+  filtroRankPeriodo = p;
+  document.querySelectorAll('[data-per-rank]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.perRank === p);
+  });
+  if (p !== 'custom') {
+    document.getElementById('datas-custom-rank').style.display = 'none';
+    carregarRanking();
+  }
+}
+function abrirDatasRankCustom() {
+  document.getElementById('datas-custom-rank').style.display = 'block';
+  document.querySelectorAll('[data-per-rank]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.perRank === 'custom');
+  });
+}
+function aplicarDatasRankCustom() {
+  filtroRankPeriodo = 'custom';
+  carregarRanking();
+}
+
+// Calcula intervalo de datas em ISO baseado no período selecionado
+function calcularIntervaloPeriodo(periodo) {
+  const agora = new Date();
+  const tzSP = 'America/Sao_Paulo';
+  
+  // helper: pega data em SP e retorna início do dia em UTC ISO
+  function inicioDia(d) {
+    const iso = new Intl.DateTimeFormat('en-CA', { timeZone: tzSP, year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
+    return `${iso}T00:00:00-03:00`;
+  }
+  function fimDia(d) {
+    const iso = new Intl.DateTimeFormat('en-CA', { timeZone: tzSP, year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
+    return `${iso}T23:59:59-03:00`;
+  }
+  
+  if (periodo === 'todos') return { inicio: null, fim: null, label: 'Todo o período' };
+  
+  if (periodo === 'mes_atual') {
+    const primeiroDia = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    return { 
+      inicio: inicioDia(primeiroDia), 
+      fim: fimDia(agora),
+      label: `${primeiroDia.toLocaleDateString('pt-BR',{month:'long', year:'numeric'})}`
+    };
+  }
+  if (periodo === 'mes_passado') {
+    const primeiroDia = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    const ultimoDia = new Date(agora.getFullYear(), agora.getMonth(), 0);
+    return { 
+      inicio: inicioDia(primeiroDia), 
+      fim: fimDia(ultimoDia),
+      label: `${primeiroDia.toLocaleDateString('pt-BR',{month:'long', year:'numeric'})}`
+    };
+  }
+  if (periodo === 'ultimos_7') {
+    const d = new Date(agora); d.setDate(d.getDate() - 7);
+    return { inicio: inicioDia(d), fim: fimDia(agora), label: 'Últimos 7 dias' };
+  }
+  if (periodo === 'ultimos_30') {
+    const d = new Date(agora); d.setDate(d.getDate() - 30);
+    return { inicio: inicioDia(d), fim: fimDia(agora), label: 'Últimos 30 dias' };
+  }
+  if (periodo === 'custom') {
+    const dIni = document.getElementById('rank-data-inicio')?.value;
+    const dFim = document.getElementById('rank-data-fim')?.value;
+    if (!dIni || !dFim) return { inicio: null, fim: null, label: 'Selecione as datas' };
+    return { 
+      inicio: `${dIni}T00:00:00-03:00`,
+      fim: `${dFim}T23:59:59-03:00`,
+      label: `${new Date(dIni+'T12:00').toLocaleDateString('pt-BR')} até ${new Date(dFim+'T12:00').toLocaleDateString('pt-BR')}`
+    };
+  }
+  return { inicio: null, fim: null, label: '' };
+}
+
+async function carregarRanking() {
+  try {
+    // Consulta avaliacoes direto pra filtrar por data
+    let query = 'avaliacoes?select=consultor_detectado,loja,estrelas,data_avaliacao&estrelas=eq.5&consultor_detectado=not.is.null';
+    
+    const intervalo = calcularIntervaloPeriodo(filtroRankPeriodo);
+    if (intervalo.inicio) query += `&data_avaliacao=gte.${encodeURIComponent(intervalo.inicio)}`;
+    if (intervalo.fim) query += `&data_avaliacao=lte.${encodeURIComponent(intervalo.fim)}`;
+    if (filtroLojaRank !== 'todas') query += `&loja=eq.${filtroLojaRank}`;
+    
+    query += '&limit=10000';
+    
+    const avaliacoes = await sb(query);
+    
+    // Agregar por consultor (contagem de menções 5★)
+    const agregado = {};
+    avaliacoes.forEach(a => {
+      const key = `${a.consultor_detectado}||${a.loja}`;
+      if (!agregado[key]) {
+        agregado[key] = {
+          consultor: a.consultor_detectado,
+          loja: a.loja,
+          loja_nome: LOJAS[a.loja] || a.loja,
+          total_5_estrelas: 0,
+          ultima_mencao: a.data_avaliacao
+        };
+      }
+      agregado[key].total_5_estrelas++;
+      if (a.data_avaliacao > agregado[key].ultima_mencao) {
+        agregado[key].ultima_mencao = a.data_avaliacao;
+      }
+    });
+    
+    // Se "todas lojas", agrega também por consultor
+    let listaFinal;
+    if (filtroLojaRank === 'todas') {
+      const porConsultor = {};
+      Object.values(agregado).forEach(a => {
+        if (!porConsultor[a.consultor]) {
+          porConsultor[a.consultor] = {
+            consultor: a.consultor,
+            lojas: [],
+            total_5_estrelas: 0,
+            ultima_mencao: a.ultima_mencao
+          };
+        }
+        porConsultor[a.consultor].lojas.push(a.loja_nome);
+        porConsultor[a.consultor].total_5_estrelas += a.total_5_estrelas;
+        if (a.ultima_mencao > porConsultor[a.consultor].ultima_mencao) {
+          porConsultor[a.consultor].ultima_mencao = a.ultima_mencao;
+        }
+      });
+      listaFinal = Object.values(porConsultor)
+        .sort((a,b) => b.total_5_estrelas - a.total_5_estrelas);
+    } else {
+      listaFinal = Object.values(agregado)
+        .map(a => ({ ...a, lojas: [a.loja_nome] }))
+        .sort((a,b) => b.total_5_estrelas - a.total_5_estrelas);
+    }
+    
+    // Resumo do período
+    const totalMencoes = listaFinal.reduce((s,l) => s + l.total_5_estrelas, 0);
+    const totalConsultores = listaFinal.length;
+    document.getElementById('rank-resumo-periodo').innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
+        <div><strong>📅 Período:</strong> ${intervalo.label}</div>
+        <div><strong>🏪 Loja:</strong> ${filtroLojaRank === 'todas' ? 'Todas' : LOJAS[filtroLojaRank]}</div>
+        <div><strong>🎯 Total de menções 5★:</strong> ${totalMencoes}</div>
+        <div><strong>👥 Consultores no ranking:</strong> ${totalConsultores}</div>
+      </div>
+    `;
+    
+    // Tabela
+    const tbody = document.getElementById('tbody-ranking');
+    if (!listaFinal.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="vazio">Nenhuma menção a consultor no período</td></tr>`;
+    } else {
+      tbody.innerHTML = listaFinal.map((r,i) => {
+        const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}º`;
+        return `
+        <tr>
+          <td style="font-size:18px;">${medalha}</td>
+          <td><strong>${r.consultor}</strong></td>
+          <td>${r.lojas.join(', ')}</td>
+          <td style="font-size:18px; color:#34A853;"><strong>${r.total_5_estrelas}</strong></td>
+          <td>${r.total_5_estrelas}</td>
+          <td>${fmtDataCurta(r.ultima_mencao)}</td>
+        </tr>
+      `;}).join('');
+    }
+    
+    // Chart
+    if (charts.ranking) charts.ranking.destroy();
+    charts.ranking = new Chart(document.getElementById('chart-ranking'), {
+      type: 'bar',
+      data: {
+        labels: listaFinal.map(r => r.consultor),
+        datasets: [
+          { label:'Menções 5★', data: listaFinal.map(r=>r.total_5_estrelas), backgroundColor:'#34A853' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { labels:{color:'#E8EAED'} } },
+        scales: {
+          x: { ticks:{color:'#9AA0A6'}, grid:{color:'#2A323D'} },
+          y: { ticks:{color:'#9AA0A6'}, grid:{display:false} }
+        }
+      }
+    });
+    
+    // Salva pra exportar
+    window._rankingAtual = { lista: listaFinal, periodo: intervalo.label, loja: filtroLojaRank };
+    
+  } catch(e) {
+    toast('Erro ao carregar ranking: ' + e.message, 'erro');
+    console.error(e);
+  }
+}
+
+function exportarRankingCSV() {
+  const dados = window._rankingAtual;
+  if (!dados || !dados.lista?.length) {
+    toast('Nada pra exportar. Carregue o ranking primeiro.', 'erro');
+    return;
+  }
+  const linhas = [
+    ['Posição', 'Consultor', 'Loja(s)', 'Menções 5 estrelas', 'Última menção'].join(';')
+  ];
+  dados.lista.forEach((r, i) => {
+    linhas.push([
+      i + 1,
+      r.consultor,
+      (r.lojas || []).join(' + '),
+      r.total_5_estrelas,
+      fmtDataCurta(r.ultima_mencao)
+    ].join(';'));
+  });
+  const csv = '\uFEFF' + linhas.join('\n');  // BOM pra abrir bonito no Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dataStr = new Date().toISOString().split('T')[0];
+  const lojaSlug = dados.loja === 'todas' ? 'todas-lojas' : dados.loja;
+  a.download = `ranking-consultores-${lojaSlug}-${dataStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado!', 'sucesso');
+}
+
+// =====================================================
+// HISTÓRICO
+// =====================================================
+let filtroHist = 'todas';
+let filtroHistLoja = 'todas';
+let filtroHistPeriodo = 'mes_atual';
+
+function filtrarHistorico(f) {
+  filtroHist = f;
+  document.querySelectorAll('[data-hist]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.hist === f);
+  });
+  carregarHistorico();
+}
+function filtrarHistLoja(l) {
+  filtroHistLoja = l;
+  document.querySelectorAll('[data-hist-loja]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.histLoja === l);
+  });
+  carregarHistorico();
+}
+function filtrarHistPeriodo(p) {
+  filtroHistPeriodo = p;
+  document.querySelectorAll('[data-hist-per]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.histPer === p);
+  });
+  carregarHistorico();
+}
+
+async function carregarHistorico() {
+  try {
+    let query = 'avaliacoes?select=*&order=data_avaliacao.desc&limit=500';
+    
+    if (filtroHist === '5') query += '&estrelas=eq.5';
+    else if (filtroHist === '4') query += '&estrelas=eq.4';
+    else if (filtroHist === 'baixas') query += '&estrelas=lte.3';
+    else if (filtroHist === 'pendentes') query += '&status=eq.pendente';
+    
+    if (filtroHistLoja !== 'todas') query += `&loja=eq.${filtroHistLoja}`;
+    
+    const intervalo = calcularIntervaloPeriodo(filtroHistPeriodo);
+    if (intervalo.inicio) query += `&data_avaliacao=gte.${encodeURIComponent(intervalo.inicio)}`;
+    if (intervalo.fim) query += `&data_avaliacao=lte.${encodeURIComponent(intervalo.fim)}`;
+    
+    const avals = await sb(query);
+    const tbody = document.getElementById('tbody-historico');
+    
+    document.getElementById('hist-contador').textContent = `(${avals.length} ${avals.length === 1 ? 'avaliação' : 'avaliações'} · ${intervalo.label})`;
+    
+    if (!avals.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="vazio">
+        <div class="vazio-icon">📭</div>Nenhuma avaliação no filtro selecionado
+      </td></tr>`;
+      window._historicoAtual = [];
+      return;
+    }
+    
+    tbody.innerHTML = avals.map(a => `
+      <tr>
+        <td>${fmtDataCurta(a.data_avaliacao)}</td>
+        <td>${LOJAS[a.loja] || a.loja}</td>
+        <td>${a.cliente_nome || '—'}</td>
+        <td class="estrelas-display">${estrelasDisplay(a.estrelas)}</td>
+        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(a.texto||'').replace(/"/g,'&quot;')}">${(a.texto||'').slice(0,80)}${(a.texto||'').length>80?'...':''}</td>
+        <td>${a.consultor_detectado ? `<strong>${a.consultor_detectado}</strong>` : '—'}</td>
+        <td><span class="status status-${a.status}">${a.status}</span></td>
+        <td>
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="excluirAvaliacao(${a.id})">🗑</button>
+        </td>
+      </tr>
+    `).join('');
+    
+    window._historicoAtual = avals;
+  } catch(e) {
+    toast('Erro ao carregar histórico: ' + e.message, 'erro');
+  }
+}
+
+function exportarHistoricoCSV() {
+  const avals = window._historicoAtual;
+  if (!avals || !avals.length) {
+    toast('Nada pra exportar', 'erro');
+    return;
+  }
+  const linhas = [
+    ['Data', 'Loja', 'Cliente', 'Estrelas', 'Consultor', 'Status', 'Texto'].join(';')
+  ];
+  avals.forEach(a => {
+    const texto = (a.texto || '').replace(/;/g, ',').replace(/\n/g, ' ').replace(/\r/g, ' ');
+    linhas.push([
+      fmtDataCurta(a.data_avaliacao),
+      LOJAS[a.loja] || a.loja,
+      a.cliente_nome || '',
+      a.estrelas,
+      a.consultor_detectado || '',
+      a.status,
+      `"${texto}"`
+    ].join(';'));
+  });
+  const csv = '\uFEFF' + linhas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dataStr = new Date().toISOString().split('T')[0];
+  a.download = `avaliacoes-${dataStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado!', 'sucesso');
+}
+
+async function excluirAvaliacao(id) {
+  if (!confirm('Excluir esta avaliação?')) return;
+  try {
+    await sb(`avaliacoes?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+    toast('Excluída');
+    carregarHistorico();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+function abrirConfig() {
+  alert('Configurações em breve!\n\nPara editar a lista de consultores, edite a constante CONSULTORES no código.');
+}
+
+// =====================================================
+// ABA GOOGLE AUTO
+// =====================================================
+const GOOGLE_CLIENT_ID_FRONTEND = ''; // será preenchido se necessário
+
+async function carregarStatusGoogle() {
+  try {
+    const status = await sb('google_status?select=*');
+    const area = document.getElementById('google-status-area');
+    const toggleArea = document.getElementById('modo-toggle-area');
+    
+    if (!status || status.length === 0) {
+      area.innerHTML = `
+        <div class="vazio">
+          <div class="vazio-icon">🔌</div>
+          Nenhuma conta Google conectada<br>
+          <small>Clique em "Conectar Conta Google" abaixo</small>
+        </div>`;
+      toggleArea.innerHTML = '';
+      return;
+    }
+    
+    area.innerHTML = status.map(s => {
+      const tokenIcon = s.status_token === 'token_valido' ? '🟢' :
+                       s.status_token === 'token_expirado' ? '🟡' : '🔴';
+      const modoLabel = s.modo_mock ? 
+        '<span style="background:rgba(251,188,4,0.15); color:var(--aviso); padding:3px 8px; border-radius:12px; font-size:11px;">🎭 MOCK</span>' :
+        '<span style="background:rgba(52,168,83,0.15); color:var(--sucesso); padding:3px 8px; border-radius:12px; font-size:11px;">⚡ REAL</span>';
+      const ultimaSync = s.ultima_sincronizacao 
+        ? fmtData(s.ultima_sincronizacao) 
+        : 'Nunca';
+      return `
+        <div style="padding:12px; background:var(--bg); border-radius:8px; margin-bottom:8px; border:1px solid var(--borda);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong>${s.loja === 'all' ? '🌐 Todas Lojas' : LOJAS[s.loja] || s.loja}</strong>
+              ${modoLabel}
+            </div>
+            <div style="font-size:12px; color:var(--texto-secundario);">
+              ${tokenIcon} ${s.status_token.replace('_', ' ')}
+            </div>
+          </div>
+          <div style="margin-top:8px; font-size:12px; color:var(--texto-secundario);">
+            📧 ${s.google_email || '—'} · 
+            📍 ${s.google_location_name || 'Localização não configurada'} · 
+            🕐 Última sync: ${ultimaSync}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Toggle Mock/Real
+    toggleArea.innerHTML = status.map(s => `
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <input type="checkbox" ${s.modo_mock ? '' : 'checked'} 
+          onchange="toggleModo('${s.loja}', this.checked)" 
+          style="width:18px; height:18px; cursor:pointer;">
+        <span>Modo REAL ativo para <strong>${s.loja === 'all' ? 'Todas Lojas' : LOJAS[s.loja] || s.loja}</strong></span>
+      </label>
+    `).join('');
+    
+  } catch(e) {
+    document.getElementById('google-status-area').innerHTML = `
+      <div class="vazio" style="color:var(--erro);">
+        ❌ Erro: ${e.message}<br>
+        <small>Verifique se a tabela google_credenciais foi criada (rode o SQL Fase 2)</small>
+      </div>`;
+  }
+}
+
+async function toggleModo(loja, modoReal) {
+  if (modoReal && !confirm('⚠️ Ativar MODO REAL faz o sistema chamar a API real do Google.\n\nSó funciona se sua API estiver aprovada e o google_location_id estiver configurado.\n\nDeseja continuar?')) {
+    carregarStatusGoogle();
+    return;
+  }
+  try {
+    await sb(`google_credenciais?loja=eq.${loja}`, {
+      method: 'PATCH',
+      body: { modo_mock: !modoReal }
+    });
+    toast(`Modo ${modoReal ? 'REAL' : 'MOCK'} ativado`);
+    carregarStatusGoogle();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+async function conectarGoogle() {
+  // Buscar o client ID via uma consulta simples - como está no secret, precisamos do client_id público
+  const clientId = prompt(
+    'Para conectar, cole aqui seu GOOGLE_CLIENT_ID:\n' +
+    '(é aquela string que termina com .apps.googleusercontent.com)\n\n' +
+    'Você pega no Google Cloud Console → Clientes OAuth'
+  );
+  if (!clientId) return;
+  
+  const redirectUri = `${SUPABASE_URL}/functions/v1/google-oauth-callback`;
+  const scope = 'https://www.googleapis.com/auth/business.manage email profile';
+  const state = 'all'; // ou loja específica
+  
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope,
+    access_type: 'offline',
+    prompt: 'consent',
+    state
+  });
+  
+  window.open(url, '_blank', 'width=600,height=700');
+  
+  toast('🔐 Login Google aberto em nova janela. Complete o fluxo e volte aqui.', 'aviso');
+  
+  // Recarrega status após 30 segundos
+  setTimeout(() => carregarStatusGoogle(), 30000);
+}
+
+async function desconectarGoogle() {
+  if (!confirm('Tem certeza que quer desconectar a conta Google? Isso vai apagar as credenciais salvas.')) return;
+  try {
+    await sb('google_credenciais?loja=neq.zzz', { method: 'DELETE', prefer: 'return=minimal' });
+    toast('Desconectado');
+    carregarStatusGoogle();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+async function sincronizarAgora() {
+  const btn = document.getElementById('btn-sync');
+  const resultArea = document.getElementById('sync-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> Sincronizando...';
+  resultArea.innerHTML = '';
+  
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/buscar-avaliacoes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ loja: 'all' })
+    });
+    const data = await res.json();
+    
+    if (!data.sucesso) {
+      resultArea.innerHTML = `<div style="padding:12px; background:rgba(234,67,53,0.1); border:1px solid var(--erro); border-radius:8px; color:var(--erro);">❌ ${data.mensagem || data.erro}</div>`;
+      return;
+    }
+    
+    const total = data.resultado.reduce((s,r) => s + (r.novas || 0), 0);
+    
+    resultArea.innerHTML = `
+      <div style="padding:12px; background:rgba(52,168,83,0.1); border:1px solid var(--sucesso); border-radius:8px;">
+        ✅ <strong>Sincronização concluída!</strong> ${total} avaliações novas.
+      </div>
+      <div style="margin-top:8px;">
+        ${data.resultado.map(r => `
+          <div style="padding:10px; background:var(--bg); border:1px solid var(--borda); border-radius:6px; margin-top:6px; font-size:13px;">
+            <strong>${r.loja === 'all' ? 'Geral' : LOJAS[r.loja] || r.loja}</strong>
+            ${r.modo === 'mock' ? '<span style="background:rgba(251,188,4,0.15); color:var(--aviso); padding:2px 6px; border-radius:8px; font-size:10px; margin-left:6px;">🎭 MOCK</span>' : '<span style="background:rgba(52,168,83,0.15); color:var(--sucesso); padding:2px 6px; border-radius:8px; font-size:10px; margin-left:6px;">⚡ REAL</span>'}
+            <br>
+            ${r.sucesso ? `📊 ${r.total_revisadas} revisões verificadas → <strong>${r.novas} novas</strong>` : `❌ ${r.erro}`}
+            ${r.detalhes && r.detalhes.length ? '<br>' + r.detalhes.map(d => `• ${d.cliente} (${d.estrelas}★)${d.consultor ? ' → '+d.consultor : ''}`).join('<br>') : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+    
+    toast(`✨ ${total} avaliações novas processadas`);
+    carregarStatusGoogle();
+    carregarLogSync();
+  } catch(e) {
+    resultArea.innerHTML = `<div style="padding:12px; background:rgba(234,67,53,0.1); border:1px solid var(--erro); border-radius:8px; color:var(--erro);">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Sincronizar Agora';
+  }
+}
+
+async function enviarRespostasPendentes() {
+  try {
+    // Busca avaliações que tem resposta gerada mas ainda não enviada
+    const pendentes = await sb(`avaliacoes?select=*,respostas_avaliacoes(*)&google_review_id=not.is.null&status=eq.pendente`);
+    const paraEnviar = pendentes.filter(a => a.respostas_avaliacoes && a.respostas_avaliacoes.some(r => !r.enviada));
+    
+    if (paraEnviar.length === 0) {
+      toast('Nenhuma resposta pendente de envio', 'aviso');
+      return;
+    }
+    
+    if (!confirm(`Enviar ${paraEnviar.length} respostas para o Google?`)) return;
+    
+    let sucesso = 0, falhas = 0;
+    for (const aval of paraEnviar) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/enviar-resposta-google`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'apikey': SUPABASE_KEY
+          },
+          body: JSON.stringify({ avaliacao_id: aval.id })
+        });
+        const data = await res.json();
+        if (data.sucesso) sucesso++; else falhas++;
+      } catch { falhas++; }
+    }
+    
+    toast(`📤 ${sucesso} enviadas com sucesso${falhas ? ', '+falhas+' falharam' : ''}`);
+    carregarLogSync();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+async function carregarLogSync() {
+  try {
+    const logs = await sb('google_sync_log?select=*&order=criado_em.desc&limit=20');
+    const tbody = document.getElementById('tbody-sync-log');
+    if (!logs.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="vazio">Sem registros ainda</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = logs.map(l => {
+      const modoTag = l.detalhes?.modo === 'mock' 
+        ? '<span style="background:rgba(251,188,4,0.15); color:var(--aviso); padding:2px 6px; border-radius:8px; font-size:10px;">🎭 MOCK</span>'
+        : l.detalhes?.modo === 'real' 
+        ? '<span style="background:rgba(52,168,83,0.15); color:var(--sucesso); padding:2px 6px; border-radius:8px; font-size:10px;">⚡ REAL</span>'
+        : '—';
+      const det = l.detalhes 
+        ? Object.entries(l.detalhes).filter(([k]) => k !== 'modo').map(([k,v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ')
+        : (l.erro || '—');
+      return `
+        <tr>
+          <td>${fmtData(l.criado_em)}</td>
+          <td>${l.loja === 'all' ? 'Geral' : LOJAS[l.loja] || l.loja}</td>
+          <td>${l.operacao}</td>
+          <td>${modoTag}</td>
+          <td><span class="status status-${l.sucesso ? 'respondida' : 'ignorada'}">${l.sucesso ? '✓ OK' : '✗ Erro'}</span></td>
+          <td style="font-size:11px; max-width:300px; overflow:hidden; text-overflow:ellipsis;">${det}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// =====================================================
+// DETECÇÃO E MAPEAMENTO DE LOJAS GOOGLE
+// =====================================================
+let lojasGoogleDetectadas = null; // cache da resposta da API
+
+async function detectarLojasGoogle() {
+  const btn = document.getElementById('btn-detectar-lojas');
+  const area = document.getElementById('lojas-mapeamento-area');
+  
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> Conectando ao Google...';
+  area.innerHTML = '';
+  
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/listar-locations-google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': SUPABASE_KEY
+      }
+    });
+    
+    const data = await res.json();
+    
+    if (!data.sucesso) {
+      area.innerHTML = `
+        <div style="padding:14px; background:rgba(234,67,53,0.1); border:1px solid var(--erro); border-radius:8px; color:var(--erro);">
+          ❌ <strong>${data.erro}</strong>
+          ${data.detalhes ? `<br><small style="opacity:0.8;">${data.detalhes}</small>` : ''}
+        </div>
+      `;
+      return;
+    }
+    
+    lojasGoogleDetectadas = data;
+    
+    if (!data.accounts || data.accounts.length === 0) {
+      area.innerHTML = `
+        <div style="padding:14px; background:rgba(251,188,4,0.1); border:1px solid var(--aviso); border-radius:8px;">
+          ⚠️ Nenhuma conta Google Business encontrada.<br>
+          <small style="color:var(--texto-secundario);">Verifique se a conta autenticada gerencia algum perfil no Google Meu Negócio.</small>
+        </div>
+      `;
+      return;
+    }
+    
+    // Carrega mapeamento existente
+    const mapeamento = await sb('google_locations_mapeamento?select=*&order=loja_nome.asc');
+    
+    // Junta TODAS as locations de TODAS as accounts num único array com flag de origem
+    const todasLojas = [];
+    for (const acc of data.accounts) {
+      if (acc.locations) {
+        for (const loc of acc.locations) {
+          todasLojas.push({
+            ...loc,
+            account_id: acc.account_id,
+            account_name: acc.account_name
+          });
+        }
+      }
+    }
+    
+    let html = `
+      <div style="padding:12px; background:rgba(52,168,83,0.1); border:1px solid var(--sucesso); border-radius:8px; margin-bottom:14px;">
+        ✅ <strong>Encontradas ${data.total_lojas} lojas em ${data.total_contas} conta(s) Google</strong>
+      </div>
+    `;
+    
+    // Lista cada loja do sistema com select pra mapear
+    html += '<div style="display:grid; gap:10px;">';
+    for (const m of mapeamento) {
+      const mapeada = m.google_location_id !== null;
+      html += `
+        <div style="padding:14px; background:var(--bg); border:1px solid ${mapeada ? 'var(--sucesso)' : 'var(--borda)'}; border-radius:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <div>
+              <strong style="font-size:15px;">🏪 ${m.loja_nome}</strong>
+              ${mapeada 
+                ? `<span style="background:rgba(52,168,83,0.15); color:var(--sucesso); padding:3px 8px; border-radius:12px; font-size:11px; margin-left:8px;">✓ MAPEADA</span>` 
+                : `<span style="background:rgba(251,188,4,0.15); color:var(--aviso); padding:3px 8px; border-radius:12px; font-size:11px; margin-left:8px;">⚠️ NÃO MAPEADA</span>`}
+            </div>
+            ${mapeada ? `
+              <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" 
+                onclick="desmappearLoja('${m.loja_codigo}')">🗑 Remover</button>
+            ` : ''}
+          </div>
+          
+          ${mapeada ? `
+            <div style="font-size:13px; color:var(--texto-secundario); padding-top:8px; border-top:1px solid var(--borda);">
+              📍 <strong>${m.google_title}</strong><br>
+              <small>${m.google_endereco || '—'}</small><br>
+              <small style="font-family:monospace; opacity:0.6;">${m.google_location_id}</small>
+            </div>
+          ` : `
+            <select class="select-loja-google" data-loja="${m.loja_codigo}" 
+              style="width:100%; padding:8px 10px; background:var(--bg); border:1px solid var(--borda); border-radius:6px; color:var(--texto); font-size:13px;"
+              onchange="mapearLoja('${m.loja_codigo}', this.value)">
+              <option value="">Selecione qual perfil Google corresponde a ${m.loja_nome}...</option>
+              ${todasLojas.map(loc => `
+                <option value='${JSON.stringify({
+                  account_id: loc.account_id,
+                  location_id: loc.location_id,
+                  location_name: loc.location_name,
+                  title: loc.title,
+                  endereco: loc.endereco
+                }).replace(/'/g, "&apos;")}'>
+                  ${loc.title} ${loc.cidade ? `· ${loc.cidade}` : ''} ${loc.endereco ? `· ${loc.endereco.substring(0,60)}` : ''}
+                </option>
+              `).join('')}
+            </select>
+          `}
+        </div>
+      `;
+    }
+    html += '</div>';
+    
+    // Mostra lojas detectadas que ainda não foram mapeadas (informativo)
+    const idsMapeados = mapeamento.filter(m => m.google_location_id).map(m => m.google_location_id);
+    const naoMapeadas = todasLojas.filter(loc => !idsMapeados.includes(loc.location_id));
+    
+    if (naoMapeadas.length > 0) {
+      html += `
+        <div style="margin-top:16px; padding:12px; background:var(--card-hover); border-radius:8px; font-size:12px;">
+          <strong>ℹ️ Outras ${naoMapeadas.length} loja(s) detectada(s) no Google (ainda não vinculadas):</strong>
+          <ul style="margin-top:6px; padding-left:20px; color:var(--texto-secundario);">
+            ${naoMapeadas.map(l => `<li>${l.title} ${l.cidade ? `· ${l.cidade}` : ''}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+    
+    area.innerHTML = html;
+    toast(`✅ ${data.total_lojas} lojas detectadas no Google!`);
+    
+  } catch(e) {
+    area.innerHTML = `
+      <div style="padding:14px; background:rgba(234,67,53,0.1); border:1px solid var(--erro); border-radius:8px; color:var(--erro);">
+        ❌ Erro: ${e.message}
+      </div>
+    `;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 Detectar minhas lojas no Google';
+  }
+}
+
+async function mapearLoja(lojaCodigo, valorJson) {
+  if (!valorJson) return;
+  try {
+    const dados = JSON.parse(valorJson.replace(/&apos;/g, "'"));
+    
+    await sb(`google_locations_mapeamento?loja_codigo=eq.${lojaCodigo}`, {
+      method: 'PATCH',
+      body: {
+        google_account_id: dados.account_id,
+        google_location_id: dados.location_id,
+        google_location_name: dados.location_name,
+        google_title: dados.title,
+        google_endereco: dados.endereco,
+        ativo: true
+      }
+    });
+    
+    toast(`✅ Loja ${LOJAS[lojaCodigo]} mapeada com sucesso!`);
+    detectarLojasGoogle(); // recarrega a UI
+  } catch(e) {
+    toast('Erro ao mapear: ' + e.message, 'erro');
+  }
+}
+
+async function desmappearLoja(lojaCodigo) {
+  if (!confirm(`Remover mapeamento de ${LOJAS[lojaCodigo]}? A loja ficará sem vínculo com o Google.`)) return;
+  try {
+    await sb(`google_locations_mapeamento?loja_codigo=eq.${lojaCodigo}`, {
+      method: 'PATCH',
+      body: {
+        google_account_id: null,
+        google_location_id: null,
+        google_location_name: null,
+        google_title: null,
+        google_endereco: null
+      }
+    });
+    toast('Mapeamento removido');
+    detectarLojasGoogle();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+// =====================================================
+// CONFIGURAÇÃO MANUAL (PLANO B se a função automática não funcionar)
+// =====================================================
+async function abrirConfigManual() {
+  const area = document.getElementById('config-manual-area');
+  const mapAuto = document.getElementById('lojas-mapeamento-area');
+  
+  if (area.style.display !== 'none') {
+    area.style.display = 'none';
+    return;
+  }
+  
+  mapAuto.innerHTML = '';
+  area.style.display = 'block';
+  
+  // Carrega mapeamento atual
+  const mapeamento = await sb('google_locations_mapeamento?select=*&order=loja_nome.asc');
+  
+  let html = `
+    <div style="padding:14px; background:rgba(251,188,4,0.1); border:1px solid var(--aviso); border-radius:8px; margin-bottom:14px;">
+      <strong>📋 Como pegar os IDs manualmente:</strong>
+      <ol style="margin-top:8px; padding-left:20px; font-size:13px; line-height:1.7;">
+        <li>Acesse <a href="https://business.google.com" target="_blank" style="color:var(--laranja);">business.google.com</a> com a conta ${cred_email_atual()}</li>
+        <li>Selecione a loja desejada</li>
+        <li>Veja a URL no navegador — ela tem o formato:<br>
+          <code style="background:var(--bg); padding:2px 6px; border-radius:4px; font-size:11px;">business.google.com/n/<strong>ACCOUNT_ID</strong>/locations/<strong>LOCATION_ID</strong>/...</code>
+        </li>
+        <li>Copia os dois números (ACCOUNT_ID e LOCATION_ID) e cola aqui embaixo</li>
+      </ol>
+    </div>
+    
+    <div style="display:grid; gap:10px;">
+  `;
+  
+  for (const m of mapeamento) {
+    const mapeada = m.google_location_id !== null;
+    html += `
+      <div style="padding:14px; background:var(--bg); border:1px solid ${mapeada ? 'var(--sucesso)' : 'var(--borda)'}; border-radius:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <strong style="font-size:15px;">🏪 ${m.loja_nome}</strong>
+          ${mapeada 
+            ? `<span style="background:rgba(52,168,83,0.15); color:var(--sucesso); padding:3px 8px; border-radius:12px; font-size:11px;">✓ MAPEADA</span>` 
+            : ''}
+        </div>
+        
+        <div class="form-linha" style="margin-bottom:8px;">
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label style="font-size:11px;">ACCOUNT ID</label>
+            <input type="text" id="acc-${m.loja_codigo}" value="${m.google_account_id || ''}" 
+              placeholder="ex: 123456789012" style="font-family:monospace; font-size:13px;">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label style="font-size:11px;">LOCATION ID</label>
+            <input type="text" id="loc-${m.loja_codigo}" value="${m.google_location_id || ''}" 
+              placeholder="ex: 987654321098" style="font-family:monospace; font-size:13px;">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label style="font-size:11px;">TÍTULO (opcional)</label>
+            <input type="text" id="title-${m.loja_codigo}" value="${m.google_title || ''}" 
+              placeholder="Óticas Idealize - ${m.loja_nome}">
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" style="padding:6px 12px; font-size:12px; margin-top:6px;" 
+          onclick="salvarConfigManual('${m.loja_codigo}')">💾 Salvar</button>
+        ${mapeada ? `
+          <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; margin-top:6px; margin-left:6px;"
+            onclick="desmappearLoja('${m.loja_codigo}')">🗑 Limpar</button>
+        ` : ''}
+      </div>
+    `;
+  }
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+function cred_email_atual() {
+  return 'sua conta Google'; // simplificado - poderia buscar do banco
+}
+
+async function salvarConfigManual(lojaCodigo) {
+  const accId = document.getElementById(`acc-${lojaCodigo}`).value.trim();
+  const locId = document.getElementById(`loc-${lojaCodigo}`).value.trim();
+  const title = document.getElementById(`title-${lojaCodigo}`).value.trim();
+  
+  if (!accId || !locId) {
+    toast('Preencha ACCOUNT ID e LOCATION ID', 'erro');
+    return;
+  }
+  
+  try {
+    await sb(`google_locations_mapeamento?loja_codigo=eq.${lojaCodigo}`, {
+      method: 'PATCH',
+      body: {
+        google_account_id: accId,
+        google_location_id: locId,
+        google_location_name: `accounts/${accId}/locations/${locId}`,
+        google_title: title || `Óticas Idealize - ${LOJAS[lojaCodigo]}`,
+        google_endereco: null,
+        ativo: true
+      }
+    });
+    toast(`✅ ${LOJAS[lojaCodigo]} configurada manualmente!`);
+    abrirConfigManual(); // recarrega
+    abrirConfigManual(); // toggle
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+// =====================================================
+// INIT
+// =====================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Pré-carrega dashboard pra ficar pronto ao trocar
+  carregarDashboard();
+});
+</script>
+</body>
+</html>
