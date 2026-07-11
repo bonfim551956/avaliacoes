@@ -790,19 +790,84 @@
 
   <!-- TAB: GOOGLE -->
   <div id="tab-google" class="tab-content">
+    <!-- Status e conexão -->
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">
-          <i class="ti ti-brand-google"></i> Integração Google
+          <i class="ti ti-brand-google"></i> Conexão com Google
         </h2>
       </div>
-      <div id="google-status-detalhado"></div>
+      <div id="google-status-detalhado">
+        <div class="loading"><span class="spinner"></span> Verificando status...</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;">
+        <button class="btn btn-primary" onclick="conectarGoogle()">
+          <i class="ti ti-plug"></i> Conectar / Reconectar Google
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="testarConexao()">
+          <i class="ti ti-check"></i> Testar conexão
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="listarLocations()">
+          <i class="ti ti-map-pin"></i> Listar lojas do Google
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="alternarModoMock()">
+          <i class="ti ti-arrows-shuffle"></i> Alternar modo real/simulado
+        </button>
+      </div>
+      <div id="teste-conexao-resultado" style="margin-top:12px;"></div>
     </div>
+
+    <!-- Mapeamento de lojas -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="ti ti-map-pin"></i> Mapeamento das lojas
+          <span class="card-subtitle">Vínculo entre lojas e IDs do Google Business</span>
+        </h2>
+      </div>
+      <div id="lista-mapeamento">
+        <div class="loading"><span class="spinner"></span> Carregando...</div>
+      </div>
+    </div>
+
+    <!-- Ações em massa -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="ti ti-tools"></i> Ferramentas de manutenção
+        </h2>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+        <div style="padding:14px; background:var(--bg); border-radius:var(--radius-sm);">
+          <p style="margin:0 0 8px 0; font-weight:600; color:var(--teal-dark); font-size:14px;">Buscar avaliações agora</p>
+          <p style="margin:0 0 10px 0; font-size:12px; color:var(--text-muted);">Força sincronização com o Google, ignora o cron.</p>
+          <button class="btn btn-secondary btn-sm" onclick="sincronizarAgora()"><i class="ti ti-refresh"></i> Executar</button>
+        </div>
+        <div style="padding:14px; background:var(--bg); border-radius:var(--radius-sm);">
+          <p style="margin:0 0 8px 0; font-weight:600; color:var(--teal-dark); font-size:14px;">Enviar respostas pendentes</p>
+          <p style="margin:0 0 10px 0; font-size:12px; color:var(--text-muted);">Envia ao Google respostas geradas e ainda não enviadas.</p>
+          <button class="btn btn-secondary btn-sm" onclick="enviarRespostasPendentes()"><i class="ti ti-send"></i> Executar</button>
+        </div>
+        <div style="padding:14px; background:var(--bg); border-radius:var(--radius-sm);">
+          <p style="margin:0 0 8px 0; font-weight:600; color:var(--teal-dark); font-size:14px;">Reclassificar pendentes</p>
+          <p style="margin:0 0 10px 0; font-size:12px; color:var(--text-muted);">Reprocessa avaliações aguardando aprovação com o detector novo.</p>
+          <button class="btn btn-secondary btn-sm" onclick="reclassificarPendentes()"><i class="ti ti-refresh-dot"></i> Executar</button>
+        </div>
+        <div style="padding:14px; background:var(--bg); border-radius:var(--radius-sm);">
+          <p style="margin:0 0 8px 0; font-weight:600; color:var(--teal-dark); font-size:14px;">Reprocessar avaliações</p>
+          <p style="margin:0 0 10px 0; font-size:12px; color:var(--text-muted);">Passa TODAS avaliações pelo detector de consultores novamente.</p>
+          <button class="btn btn-secondary btn-sm" onclick="reprocessarAvaliacoes()"><i class="ti ti-cpu"></i> Executar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log de sincronizações -->
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">
           <i class="ti ti-list"></i> Log de sincronizações
         </h2>
+        <button class="btn btn-ghost btn-sm" onclick="carregarLogSync()"><i class="ti ti-refresh"></i></button>
       </div>
       <div id="lista-log-sync"></div>
     </div>
@@ -912,7 +977,7 @@ function trocarTab(nome) {
   if (nome === 'aprovacoes') carregarAprovacoes();
   if (nome === 'tratativas') carregarTratativas();
   if (nome === 'consultores') carregarConsultores();
-  if (nome === 'google') { carregarStatusGoogle(); carregarLogSync(); }
+  if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
 }
 
 // =====================================================
@@ -1745,14 +1810,24 @@ async function carregarStatusGoogle() {
   try {
     const creds = await sb('google_credenciais?select=*&ativo=eq.true&limit=1');
     if (!creds.length) {
-      document.getElementById('google-status-detalhado').innerHTML = '<p>Sem credenciais.</p>';
+      document.getElementById('google-status-detalhado').innerHTML = `
+        <div class="review-info-box warning">
+          <i class="ti ti-alert-triangle"></i>
+          <div><strong>Sem credenciais Google.</strong> Clique em "Conectar Google" para autorizar acesso.</div>
+        </div>
+      `;
       atualizarPillGoogle(false);
       return;
     }
     const c = creds[0];
     const ultSync = c.ultima_sincronizacao ? new Date(c.ultima_sincronizacao).toLocaleString('pt-BR') : 'Nunca';
+    const expiraEm = c.expires_at ? new Date(c.expires_at) : null;
+    const agora = new Date();
+    const tokenExpirado = expiraEm && expiraEm < agora;
+    const tokenValidoAte = expiraEm ? expiraEm.toLocaleString('pt-BR') : 'N/A';
+    
     document.getElementById('google-status-detalhado').innerHTML = `
-      <div class="kpi-grid">
+      <div class="kpi-grid" style="margin-bottom:0;">
         <div class="kpi">
           <p class="kpi-label">Modo</p>
           <p class="kpi-value" style="font-size:18px;">${c.modo_mock ? 'Simulado' : 'Real'}</p>
@@ -1763,12 +1838,18 @@ async function carregarStatusGoogle() {
         </div>
         <div class="kpi">
           <p class="kpi-label">Conta</p>
-          <p class="kpi-value" style="font-size:14px;">${c.google_email || 'N/A'}</p>
+          <p class="kpi-value" style="font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.google_email || 'N/A'}</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-label">Token válido até</p>
+          <p class="kpi-value" style="font-size:14px; color:${tokenExpirado ? 'var(--danger)' : 'var(--teal-dark)'};">${tokenValidoAte}</p>
+          ${tokenExpirado ? '<p class="kpi-hint" style="color:var(--danger);">Token expirado - reconecte</p>' : ''}
         </div>
       </div>
     `;
-    atualizarPillGoogle(true);
+    atualizarPillGoogle(!tokenExpirado);
   } catch (e) {
+    document.getElementById('google-status-detalhado').innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${e.message}</div></div>`;
     atualizarPillGoogle(false);
   }
 }
@@ -1785,24 +1866,139 @@ function atualizarPillGoogle(ok) {
   }
 }
 
-async function carregarLogSync() {
+async function conectarGoogle() {
+  toast('Abrindo autorização do Google...', 'info');
   try {
-    const logs = await sb('google_sync_log?select=*&order=id.desc&limit=20');
-    if (!logs.length) {
-      document.getElementById('lista-log-sync').innerHTML = '<div class="empty"><p>Sem logs.</p></div>';
+    // Chama a função que retorna a URL de autorização
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/google-oauth-callback?action=start`, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': SUPABASE_KEY
+      }
+    });
+    const data = await res.json();
+    if (data.auth_url) {
+      window.open(data.auth_url, '_blank', 'width=600,height=700');
+      toast('Autorize na janela do Google. Depois clique em "Testar conexão".', 'info');
+    } else {
+      // Fallback: tenta URL padrão do OAuth manual
+      const redirectUri = `${SUPABASE_URL}/functions/v1/google-oauth-callback`;
+      toast('Peça o link OAuth ao administrador ou reconecte pela função google-oauth-callback', 'error');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function testarConexao() {
+  const box = document.getElementById('teste-conexao-resultado');
+  box.innerHTML = '<div class="loading"><span class="spinner"></span> Testando...</div>';
+  try {
+    const r = await callFn('testar-reviews', {});
+    if (r.sucesso) {
+      box.innerHTML = `
+        <div class="review-info-box suggestion">
+          <i class="ti ti-check"></i>
+          <div><strong>Conexão OK!</strong> ${r.mensagem || 'API respondendo normalmente.'}</div>
+        </div>
+      `;
+      toast('Conexão funcionando', 'success');
+    } else {
+      box.innerHTML = `
+        <div class="review-info-box warning">
+          <i class="ti ti-x"></i>
+          <div><strong>Falhou:</strong> ${escapeHtml(r.erro || r.mensagem || 'Erro desconhecido')}</div>
+        </div>
+      `;
+      toast('Falha no teste', 'error');
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${escapeHtml(e.message)}</div></div>`;
+  }
+}
+
+async function listarLocations() {
+  const box = document.getElementById('teste-conexao-resultado');
+  box.innerHTML = '<div class="loading"><span class="spinner"></span> Buscando lojas no Google...</div>';
+  try {
+    const r = await callFn('listar-locations-google', {});
+    if (r.sucesso && r.locations) {
+      const rows = r.locations.map(l => `
+        <tr>
+          <td><strong>${escapeHtml(l.title || l.name || 'Sem título')}</strong></td>
+          <td class="muted" style="font-size:12px;">${escapeHtml(l.locationId || l.name || '')}</td>
+          <td class="muted">${escapeHtml(l.address || '—')}</td>
+        </tr>
+      `).join('');
+      box.innerHTML = `
+        <div class="review-info-box suggestion">
+          <i class="ti ti-check"></i>
+          <div><strong>${r.locations.length} lojas encontradas</strong> na sua conta Google.</div>
+        </div>
+        <div class="table-wrap" style="margin-top:12px;">
+          <table class="table">
+            <thead><tr><th>Nome</th><th>Location ID</th><th>Endereço</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    } else {
+      box.innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${escapeHtml(r.erro || 'sem resultado')}</div></div>`;
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${escapeHtml(e.message)}</div></div>`;
+  }
+}
+
+async function alternarModoMock() {
+  try {
+    const creds = await sb('google_credenciais?select=*&ativo=eq.true&limit=1');
+    if (!creds.length) { toast('Sem credenciais', 'error'); return; }
+    const c = creds[0];
+    const novoModo = !c.modo_mock;
+    if (!confirm(`Alternar para modo ${novoModo ? 'SIMULADO (mock)' : 'REAL (produção)'}?`)) return;
+    await sb(`google_credenciais?id=eq.${c.id}`, {
+      method: 'PATCH',
+      body: { modo_mock: novoModo }
+    });
+    toast(`Modo alterado para ${novoModo ? 'simulado' : 'real'}`, 'success');
+    carregarStatusGoogle();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function carregarMapeamento() {
+  try {
+    const maps = await sb('google_locations_mapeamento?select=*&order=loja_codigo.asc');
+    if (!maps.length) {
+      document.getElementById('lista-mapeamento').innerHTML = '<div class="empty"><p>Sem mapeamento cadastrado.</p></div>';
       return;
     }
-    document.getElementById('lista-log-sync').innerHTML = `
+    document.getElementById('lista-mapeamento').innerHTML = `
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Data</th><th>Loja</th><th>Operação</th><th>Status</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Loja</th>
+              <th>Account ID</th>
+              <th>Location ID</th>
+              <th>Status</th>
+              <th style="width:80px;"></th>
+            </tr>
+          </thead>
           <tbody>
-            ${logs.map(l => `
+            ${maps.map(m => `
               <tr>
-                <td class="muted" style="font-size:12px;">${new Date(l.criado_em).toLocaleString('pt-BR')}</td>
-                <td class="muted">${l.loja ? (LOJAS[l.loja] || l.loja) : '—'}</td>
-                <td>${l.operacao}</td>
-                <td>${l.sucesso ? '<span class="review-tag approved">OK</span>' : '<span class="review-tag negative">Erro</span>'}</td>
+                <td><strong>${LOJAS[m.loja_codigo] || m.loja_codigo}</strong></td>
+                <td class="muted" style="font-size:12px;">${escapeHtml(m.google_account_id || '—')}</td>
+                <td class="muted" style="font-size:12px;">${escapeHtml(m.google_location_id || '—')}</td>
+                <td>${m.ativo ? '<span class="review-tag approved"><i class="ti ti-check"></i> Ativo</span>' : '<span class="review-tag"><i class="ti ti-x"></i> Inativo</span>'}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" onclick="editarMapeamento(${m.id}, '${escapeHtml(m.google_location_id || '')}', '${escapeHtml(m.google_account_id || '')}')" title="Editar">
+                    <i class="ti ti-edit"></i>
+                  </button>
+                </td>
               </tr>
             `).join('')}
           </tbody>
@@ -1810,7 +2006,115 @@ async function carregarLogSync() {
       </div>
     `;
   } catch (e) {
+    document.getElementById('lista-mapeamento').innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${escapeHtml(e.message)}</div></div>`;
+  }
+}
+
+async function editarMapeamento(id, locIdAtual, accIdAtual) {
+  const novoLoc = prompt('Google Location ID:', locIdAtual);
+  if (novoLoc === null) return;
+  const novoAcc = prompt('Google Account ID:', accIdAtual);
+  if (novoAcc === null) return;
+  try {
+    await sb(`google_locations_mapeamento?id=eq.${id}`, {
+      method: 'PATCH',
+      body: { 
+        google_location_id: novoLoc.trim() || null,
+        google_account_id: novoAcc.trim() || null
+      }
+    });
+    toast('Mapeamento atualizado', 'success');
+    carregarMapeamento();
+  } catch (e) {
     toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function enviarRespostasPendentes() {
+  if (!confirm('Enviar TODAS as respostas geradas ainda não enviadas ao Google?')) return;
+  toast('Enviando...', 'info');
+  try {
+    const r = await callFn('enviar-respostas-pendentes', {});
+    if (r.sucesso) {
+      toast(`${r.enviadas || 0} respostas enviadas`, 'success');
+      carregarLogSync();
+    } else {
+      toast('Erro: ' + (r.erro || 'falhou'), 'error');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function reclassificarPendentes() {
+  if (!confirm('Reprocessar até 200 avaliações pendentes com o detector? Pode levar alguns minutos.')) return;
+  toast('Reclassificando...', 'info');
+  try {
+    const r = await callFn('reclassificar-pendentes', { limite: 200 });
+    if (r.sucesso) {
+      toast(`Analisadas: ${r.total_analisadas} | Confirmadas: ${r.confirmadas_auto} | Pendentes: ${r.ainda_pendentes} | Sem menção: ${r.sem_mencao}`, 'success');
+      atualizarBadges();
+    } else {
+      toast('Erro: ' + (r.erro || 'falhou'), 'error');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function reprocessarAvaliacoes() {
+  if (!confirm('Reprocessar TODAS as avaliações? Isso pode demorar bastante e recontar variantes.')) return;
+  toast('Reprocessando...', 'info');
+  try {
+    const r = await callFn('reprocessar-avaliacoes', {});
+    if (r.sucesso) {
+      toast(`${r.processadas || 0} avaliações reprocessadas`, 'success');
+    } else {
+      toast('Erro: ' + (r.erro || 'falhou'), 'error');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function carregarLogSync() {
+  try {
+    const logs = await sb('google_sync_log?select=*&order=id.desc&limit=30');
+    if (!logs.length) {
+      document.getElementById('lista-log-sync').innerHTML = '<div class="empty"><p>Sem logs.</p></div>';
+      return;
+    }
+    document.getElementById('lista-log-sync').innerHTML = `
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th style="width:170px;">Data</th><th>Loja</th><th>Operação</th><th>Status</th><th>Detalhes</th></tr></thead>
+          <tbody>
+            ${logs.map(l => {
+              let detalhes = '';
+              if (l.detalhes) {
+                try {
+                  const d = typeof l.detalhes === 'string' ? JSON.parse(l.detalhes) : l.detalhes;
+                  if (d.total !== undefined) detalhes = `${d.total} avaliações, ${d.novas || 0} novas`;
+                  else detalhes = JSON.stringify(d).substring(0, 60);
+                } catch { detalhes = String(l.detalhes).substring(0, 60); }
+              }
+              if (l.erro) detalhes = `<span style="color:var(--danger);">${escapeHtml(l.erro.substring(0, 80))}</span>`;
+              return `
+                <tr>
+                  <td class="muted" style="font-size:12px;">${new Date(l.criado_em).toLocaleString('pt-BR')}</td>
+                  <td class="muted">${l.loja ? (LOJAS[l.loja] || l.loja) : '—'}</td>
+                  <td>${escapeHtml(l.operacao)}</td>
+                  <td>${l.sucesso ? '<span class="review-tag approved"><i class="ti ti-check"></i> OK</span>' : '<span class="review-tag negative"><i class="ti ti-x"></i> Erro</span>'}</td>
+                  <td class="muted" style="font-size:12px;">${detalhes}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('lista-log-sync').innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${escapeHtml(e.message)}</div></div>`;
   }
 }
 
