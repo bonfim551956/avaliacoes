@@ -225,6 +225,7 @@
     <button class="tab-btn" onclick="trocarTab('dashboard')">📊 Dashboard</button>
     <button class="tab-btn" onclick="trocarTab('ranking')">🏆 Ranking Consultores</button>
     <button class="tab-btn" onclick="trocarTab('historico')">📋 Histórico</button>
+    <button class="tab-btn" onclick="trocarTab('aprovacoes')" id="btn-aprovacoes">🔍 Aprovações <span id="badge-aprovacoes" style="display:none; background:var(--laranja); color:#fff; padding:2px 8px; border-radius:10px; font-size:11px; margin-left:4px;">0</span></button>
     <button class="tab-btn" onclick="trocarTab('consultores')">👥 Consultores</button>
     <button class="tab-btn" onclick="trocarTab('google')">🔗 Google Auto</button>
   </div>
@@ -407,6 +408,28 @@
       </div>
     </div>
   </div>
+  <!-- TAB: APROVAÇÕES -->
+  <div id="tab-aprovacoes" class="tab-content">
+    <div class="filtros">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">🏪 Loja:</strong>
+      <span class="filtro-pill ativo" data-aprov-loja="todas" onclick="filtrarAprovLoja('todas')">Todas</span>
+      <span class="filtro-pill" data-aprov-loja="sao_vicente" onclick="filtrarAprovLoja('sao_vicente')">São Vicente</span>
+      <span class="filtro-pill" data-aprov-loja="campinas" onclick="filtrarAprovLoja('campinas')">Campinas</span>
+      <span class="filtro-pill" data-aprov-loja="piracicaba" onclick="filtrarAprovLoja('piracicaba')">Piracicaba</span>
+      <span class="filtro-pill" data-aprov-loja="sorocaba" onclick="filtrarAprovLoja('sorocaba')">Sorocaba</span>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:0;">🔍 Avaliações Aguardando Aprovação <span id="aprov-contador" style="color:var(--texto-secundario); font-size:14px; font-weight:normal;"></span></h2>
+      </div>
+      <div style="padding:12px; background:rgba(66,133,244,0.08); border:1px solid var(--azul); border-radius:8px; margin-bottom:12px; color:var(--texto); font-size:13px;">
+        💡 <strong>Como funciona:</strong> Quando a IA não tem certeza de qual consultor foi mencionado, ela pede sua confirmação aqui. Ao aprovar, o sistema APRENDE — adiciona a variação nas variantes do consultor. Da próxima vez, detecta automaticamente!
+      </div>
+      <div id="lista-aprovacoes"></div>
+    </div>
+  </div>
+
   <!-- TAB: CONSULTORES -->
   <div id="tab-consultores" class="tab-content">
     <div class="filtros">
@@ -685,6 +708,7 @@ function trocarTab(nome) {
   if (nome === 'dashboard') carregarDashboard();
   if (nome === 'ranking') carregarRanking();
   if (nome === 'historico') carregarHistorico();
+  if (nome === 'aprovacoes') carregarAprovacoes();
   if (nome === 'consultores') carregarConsultores();
   if (nome === 'google') { carregarStatusGoogle(); carregarLogSync(); }
 }
@@ -1595,6 +1619,173 @@ async function enviarRespostasPendentes() {
 }
 
 // =====================================================
+// APROVAÇÕES (aprendizado)
+// =====================================================
+let filtroAprovLoja = 'todas';
+
+function filtrarAprovLoja(l) {
+  filtroAprovLoja = l;
+  document.querySelectorAll('[data-aprov-loja]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.aprovLoja === l);
+  });
+  carregarAprovacoes();
+}
+
+async function carregarAprovacoes() {
+  try {
+    let query = 'avaliacoes?select=*&status_deteccao=eq.pendente_aprovacao&order=data_avaliacao.desc&limit=100';
+    if (filtroAprovLoja !== 'todas') query += `&loja=eq.${filtroAprovLoja}`;
+    
+    const avals = await sb(query);
+    
+    // Busca consultores da(s) loja(s) pra dropdown
+    let qCons = 'consultores?select=nome,loja&ativo=eq.true&order=nome.asc';
+    if (filtroAprovLoja !== 'todas') qCons += `&loja=eq.${filtroAprovLoja}`;
+    const consultores = await sb(qCons);
+    
+    const consultoresPorLoja = {};
+    consultores.forEach(c => {
+      if (!consultoresPorLoja[c.loja]) consultoresPorLoja[c.loja] = [];
+      consultoresPorLoja[c.loja].push(c.nome);
+    });
+    
+    document.getElementById('aprov-contador').textContent = `(${avals.length})`;
+    
+    // Badge no botão da aba
+    const badge = document.getElementById('badge-aprovacoes');
+    if (badge) {
+      if (avals.length > 0) {
+        badge.textContent = avals.length;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    
+    const container = document.getElementById('lista-aprovacoes');
+    if (!avals.length) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:40px 20px; color:var(--texto-secundario);">
+          <div style="font-size:48px; margin-bottom:12px;">✅</div>
+          <div style="font-size:16px; font-weight:600; margin-bottom:8px;">Tudo em dia!</div>
+          <div>Nenhuma avaliação aguardando sua aprovação.</div>
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = avals.map(a => {
+      const consLoja = consultoresPorLoja[a.loja] || [];
+      const sugerido = a.consultor_sugerido;
+      const variacao = a.variacao_texto || '?';
+      
+      // Destaca a variação no texto
+      let textoDestacado = a.texto || '';
+      if (a.variacao_texto) {
+        const regex = new RegExp(`(${a.variacao_texto})`, 'gi');
+        textoDestacado = textoDestacado.replace(regex, '<mark style="background:var(--laranja); color:#fff; padding:2px 4px; border-radius:3px;">$1</mark>');
+      }
+      
+      const opcoesConsultores = consLoja.map(nome => 
+        `<option value="${nome}" ${nome === sugerido ? 'selected' : ''}>${nome}</option>`
+      ).join('');
+      
+      return `
+        <div class="card" style="margin-bottom:12px; border-left:4px solid var(--laranja);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong>${a.cliente_nome}</strong> · ${LOJAS[a.loja]} · ${fmtDataCurta(a.data_avaliacao)} · ${estrelasDisplay(a.estrelas)}
+            </div>
+            <span style="background:rgba(245,154,42,0.15); color:var(--laranja); padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600;">
+              PENDENTE APROVAÇÃO
+            </span>
+          </div>
+          
+          <div style="padding:12px; background:var(--bg); border-radius:6px; margin-bottom:12px; line-height:1.5;">
+            "${textoDestacado}"
+          </div>
+          
+          ${sugerido ? `
+            <div style="padding:10px; background:rgba(52,168,83,0.08); border:1px solid #34A853; border-radius:6px; margin-bottom:12px; color:var(--texto);">
+              🤖 <strong>Sugestão da IA:</strong> "${variacao}" pode ser <strong>${sugerido}</strong>
+            </div>
+          ` : `
+            <div style="padding:10px; background:rgba(234,67,53,0.08); border:1px solid #EA4335; border-radius:6px; margin-bottom:12px; color:var(--texto);">
+              ⚠️ Cliente citou "${variacao}" mas não parece consultor da lista
+            </div>
+          `}
+          
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label style="color:var(--texto-secundario); font-size:13px;">Qual consultor foi?</label>
+            <select id="sel-cons-${a.id}" style="flex:1; min-width:200px; padding:8px; background:var(--bg); color:var(--texto); border:1px solid var(--borda); border-radius:6px;">
+              <option value="">-- Selecione --</option>
+              ${opcoesConsultores}
+              <option value="__NENHUM__" style="color:#EA4335;">🚫 Nenhum (não é consultor)</option>
+            </select>
+            <input type="text" id="var-cons-${a.id}" value="${variacao}" placeholder="Como cliente escreveu" style="width:150px; padding:8px; background:var(--bg); color:var(--texto); border:1px solid var(--borda); border-radius:6px; font-size:13px;">
+            <button class="btn btn-primary" onclick="aprovarDeteccao(${a.id})">✅ Confirmar</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    toast('Erro ao carregar aprovações: ' + e.message, 'erro');
+  }
+}
+
+async function aprovarDeteccao(avaliacaoId) {
+  const sel = document.getElementById(`sel-cons-${avaliacaoId}`);
+  const varInput = document.getElementById(`var-cons-${avaliacaoId}`);
+  const escolha = sel.value;
+  const variacao = varInput.value.trim();
+  
+  if (!escolha) {
+    toast('Selecione um consultor ou marque "Nenhum"', 'erro');
+    return;
+  }
+  
+  const consultorAprovado = escolha === '__NENHUM__' ? null : escolha;
+  
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/aprovar-deteccao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({
+        avaliacao_id: avaliacaoId,
+        consultor_aprovado: consultorAprovado,
+        variacao_texto: variacao,
+        aprender: !!consultorAprovado  // só aprende se aprovou alguém
+      })
+    });
+    const data = await res.json();
+    if (data.sucesso) {
+      toast(data.mensagem, 'sucesso');
+      carregarAprovacoes();
+    } else {
+      toast('Erro: ' + (data.erro || 'desconhecido'), 'erro');
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+async function verificarAprovacoesPendentes() {
+  // Chamado no init pra mostrar badge
+  try {
+    const res = await sb('avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao&limit=100');
+    const badge = document.getElementById('badge-aprovacoes');
+    if (badge && res.length > 0) {
+      badge.textContent = res.length;
+      badge.style.display = 'inline-block';
+    }
+  } catch {}
+}
+
+// =====================================================
 // CONSULTORES (gerenciamento)
 // =====================================================
 let filtroConsLoja = 'todas';
@@ -2100,6 +2291,8 @@ async function salvarConfigManual(lojaCodigo) {
 window.addEventListener('DOMContentLoaded', () => {
   // Pré-carrega dashboard pra ficar pronto ao trocar
   carregarDashboard();
+  // Verifica se tem aprovações pendentes pra mostrar badge
+  verificarAprovacoesPendentes();
 });
 </script>
 </body>
