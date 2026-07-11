@@ -225,6 +225,7 @@
     <button class="tab-btn" onclick="trocarTab('dashboard')">📊 Dashboard</button>
     <button class="tab-btn" onclick="trocarTab('ranking')">🏆 Ranking Consultores</button>
     <button class="tab-btn" onclick="trocarTab('historico')">📋 Histórico</button>
+    <button class="tab-btn" onclick="trocarTab('consultores')">👥 Consultores</button>
     <button class="tab-btn" onclick="trocarTab('google')">🔗 Google Auto</button>
   </div>
 
@@ -406,6 +407,87 @@
       </div>
     </div>
   </div>
+  <!-- TAB: CONSULTORES -->
+  <div id="tab-consultores" class="tab-content">
+    <div class="filtros">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">🏪 Loja:</strong>
+      <span class="filtro-pill ativo" data-cons-loja="todas" onclick="filtrarConsultoresLoja('todas')">Todas</span>
+      <span class="filtro-pill" data-cons-loja="sao_vicente" onclick="filtrarConsultoresLoja('sao_vicente')">São Vicente</span>
+      <span class="filtro-pill" data-cons-loja="campinas" onclick="filtrarConsultoresLoja('campinas')">Campinas</span>
+      <span class="filtro-pill" data-cons-loja="piracicaba" onclick="filtrarConsultoresLoja('piracicaba')">Piracicaba</span>
+      <span class="filtro-pill" data-cons-loja="sorocaba" onclick="filtrarConsultoresLoja('sorocaba')">Sorocaba</span>
+    </div>
+    <div class="filtros">
+      <strong style="color:var(--texto-secundario); margin-right:8px;">Status:</strong>
+      <span class="filtro-pill ativo" data-cons-status="ativos" onclick="filtrarConsultoresStatus('ativos')">✅ Ativos</span>
+      <span class="filtro-pill" data-cons-status="inativos" onclick="filtrarConsultoresStatus('inativos')">🚫 Inativos</span>
+      <span class="filtro-pill" data-cons-status="todos" onclick="filtrarConsultoresStatus('todos')">Todos</span>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:0;">👥 Gerenciar Consultores <span id="cons-contador" style="color:var(--texto-secundario); font-size:14px; font-weight:normal;"></span></h2>
+        <button class="btn btn-primary" onclick="abrirModalConsultor()">➕ Novo Consultor</button>
+      </div>
+      <div style="padding:12px; background:rgba(66,133,244,0.08); border:1px solid var(--azul); border-radius:8px; margin-bottom:12px; color:var(--texto); font-size:13px;">
+        💡 <strong>Dica:</strong> Adicionar variantes ajuda a IA a detectar o consultor mesmo quando o cliente escreve o nome errado ou usa apelido. Ex: para "Emanuele", coloque variantes como "emanuelle", "manuele", "ema".
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th><th>Loja</th><th>Variantes</th>
+              <th>Status</th><th>Menções 5★</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-consultores"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CADASTRO/EDIÇÃO CONSULTOR -->
+  <div id="modal-consultor" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--card); border-radius:12px; padding:24px; max-width:500px; width:100%; border:1px solid var(--borda);">
+      <h2 id="modal-cons-titulo" style="margin:0 0 16px 0;">➕ Novo Consultor</h2>
+      <input type="hidden" id="cons-id">
+      
+      <label style="display:block; margin-bottom:12px;">
+        <strong>Nome oficial *</strong>
+        <input type="text" id="cons-nome" placeholder="Ex: Emanuele" style="width:100%; padding:8px; margin-top:4px; background:var(--bg); color:var(--texto); border:1px solid var(--borda); border-radius:6px; box-sizing:border-box;">
+      </label>
+
+      <label style="display:block; margin-bottom:12px;">
+        <strong>Loja *</strong>
+        <select id="cons-loja" style="width:100%; padding:8px; margin-top:4px; background:var(--bg); color:var(--texto); border:1px solid var(--borda); border-radius:6px; box-sizing:border-box;">
+          <option value="sao_vicente">São Vicente</option>
+          <option value="campinas">Campinas</option>
+          <option value="piracicaba">Piracicaba</option>
+          <option value="sorocaba">Sorocaba</option>
+        </select>
+      </label>
+
+      <label style="display:block; margin-bottom:12px;">
+        <strong>Variantes de escrita</strong>
+        <div style="font-size:12px; color:var(--texto-secundario); margin-bottom:4px;">
+          Separadas por vírgula. Inclua apelidos e erros comuns. Ex: <em>emanuele, emanuelle, manuele, ema</em>
+        </div>
+        <textarea id="cons-variantes" rows="2" placeholder="nome, variante1, variante2..." style="width:100%; padding:8px; background:var(--bg); color:var(--texto); border:1px solid var(--borda); border-radius:6px; box-sizing:border-box; resize:vertical;"></textarea>
+      </label>
+
+      <label style="display:block; margin-bottom:16px;">
+        <input type="checkbox" id="cons-ativo" checked> 
+        <strong>Consultor ativo</strong>
+        <div style="font-size:12px; color:var(--texto-secundario); margin-left:22px;">Desmarque para consultores que saíram (mantém histórico)</div>
+      </label>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="fecharModalConsultor()">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarConsultor()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB: GOOGLE AUTO -->
   <div id="tab-google" class="tab-content">
     
@@ -592,6 +674,7 @@ function trocarTab(nome) {
   if (nome === 'dashboard') carregarDashboard();
   if (nome === 'ranking') carregarRanking();
   if (nome === 'historico') carregarHistorico();
+  if (nome === 'consultores') carregarConsultores();
   if (nome === 'google') { carregarStatusGoogle(); carregarLogSync(); }
 }
 
@@ -1496,6 +1579,171 @@ async function enviarRespostasPendentes() {
     toast(`📤 ${sucesso} enviadas com sucesso${falhas ? ', '+falhas+' falharam' : ''}`);
     carregarLogSync();
   } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
+// =====================================================
+// CONSULTORES (gerenciamento)
+// =====================================================
+let filtroConsLoja = 'todas';
+let filtroConsStatus = 'ativos';
+
+function filtrarConsultoresLoja(l) {
+  filtroConsLoja = l;
+  document.querySelectorAll('[data-cons-loja]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.consLoja === l);
+  });
+  carregarConsultores();
+}
+function filtrarConsultoresStatus(s) {
+  filtroConsStatus = s;
+  document.querySelectorAll('[data-cons-status]').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.consStatus === s);
+  });
+  carregarConsultores();
+}
+
+async function carregarConsultores() {
+  try {
+    let query = 'consultores?select=*&order=loja.asc,nome.asc';
+    if (filtroConsLoja !== 'todas') query += `&loja=eq.${filtroConsLoja}`;
+    if (filtroConsStatus === 'ativos') query += '&ativo=eq.true';
+    else if (filtroConsStatus === 'inativos') query += '&ativo=eq.false';
+    
+    const consultores = await sb(query);
+    
+    // Busca contagem 5★ do mês atual pra cada consultor
+    const intervalo = calcularIntervaloPeriodo('mes_atual');
+    let qAvals = 'avaliacoes?select=consultor_detectado,loja&estrelas=eq.5&consultor_detectado=not.is.null&limit=10000';
+    if (intervalo.inicio) qAvals += `&data_avaliacao=gte.${encodeURIComponent(intervalo.inicio)}`;
+    if (intervalo.fim) qAvals += `&data_avaliacao=lte.${encodeURIComponent(intervalo.fim)}`;
+    const avals = await sb(qAvals);
+    
+    const contagem = {};
+    avals.forEach(a => {
+      const key = `${a.consultor_detectado}||${a.loja}`;
+      contagem[key] = (contagem[key] || 0) + 1;
+    });
+    
+    document.getElementById('cons-contador').textContent = `(${consultores.length})`;
+    
+    const tbody = document.getElementById('tbody-consultores');
+    if (!consultores.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="vazio">
+        <div class="vazio-icon">👥</div>Nenhum consultor no filtro. Clique "Novo Consultor" para adicionar.
+      </td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = consultores.map(c => {
+      const mencoes = contagem[`${c.nome}||${c.loja}`] || 0;
+      const variantesTxt = (c.variantes && c.variantes.length > 0) 
+        ? c.variantes.map(v => `<span style="display:inline-block; background:var(--bg); padding:2px 8px; border-radius:4px; margin:2px; font-size:11px;">${v}</span>`).join('')
+        : '<span style="color:var(--texto-secundario); font-style:italic;">só o nome</span>';
+      return `
+        <tr>
+          <td><strong>${c.nome}</strong></td>
+          <td>${LOJAS[c.loja] || c.loja}</td>
+          <td style="max-width:400px;">${variantesTxt}</td>
+          <td>${c.ativo ? '<span class="status status-respondida">✅ Ativo</span>' : '<span class="status status-pendente">🚫 Inativo</span>'}</td>
+          <td style="text-align:center; font-size:16px; color:#34A853;"><strong>${mencoes}</strong></td>
+          <td>
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="editarConsultor(${c.id})">✏️</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="toggleConsultorAtivo(${c.id}, ${!c.ativo})">${c.ativo ? '🚫' : '✅'}</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    
+    window._consultoresAtuais = consultores;
+  } catch (e) {
+    toast('Erro ao carregar consultores: ' + e.message, 'erro');
+  }
+}
+
+function abrirModalConsultor() {
+  document.getElementById('modal-cons-titulo').textContent = '➕ Novo Consultor';
+  document.getElementById('cons-id').value = '';
+  document.getElementById('cons-nome').value = '';
+  document.getElementById('cons-loja').value = filtroConsLoja !== 'todas' ? filtroConsLoja : 'sao_vicente';
+  document.getElementById('cons-variantes').value = '';
+  document.getElementById('cons-ativo').checked = true;
+  document.getElementById('modal-consultor').style.display = 'flex';
+}
+
+function fecharModalConsultor() {
+  document.getElementById('modal-consultor').style.display = 'none';
+}
+
+function editarConsultor(id) {
+  const c = (window._consultoresAtuais || []).find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('modal-cons-titulo').textContent = '✏️ Editar Consultor';
+  document.getElementById('cons-id').value = c.id;
+  document.getElementById('cons-nome').value = c.nome;
+  document.getElementById('cons-loja').value = c.loja;
+  document.getElementById('cons-variantes').value = (c.variantes || []).join(', ');
+  document.getElementById('cons-ativo').checked = c.ativo;
+  document.getElementById('modal-consultor').style.display = 'flex';
+}
+
+async function salvarConsultor() {
+  const id = document.getElementById('cons-id').value;
+  const nome = document.getElementById('cons-nome').value.trim();
+  const loja = document.getElementById('cons-loja').value;
+  const variantesRaw = document.getElementById('cons-variantes').value.trim();
+  const ativo = document.getElementById('cons-ativo').checked;
+  
+  if (!nome) { toast('Nome é obrigatório', 'erro'); return; }
+  
+  // Processa variantes: separa por vírgula, remove espaços, remove duplicatas, adiciona o nome se não estiver
+  let variantes = variantesRaw
+    ? variantesRaw.split(',').map(v => v.trim().toLowerCase()).filter(v => v.length > 0)
+    : [];
+  const nomeLower = nome.toLowerCase();
+  if (!variantes.includes(nomeLower)) variantes.unshift(nomeLower);
+  variantes = [...new Set(variantes)];
+  
+  const payload = { nome, loja, variantes, ativo, atualizado_em: new Date().toISOString() };
+  
+  try {
+    if (id) {
+      // Edição
+      await sb(`consultores?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(payload)
+      });
+      toast('Consultor atualizado!', 'sucesso');
+    } else {
+      // Criação
+      await sb('consultores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(payload)
+      });
+      toast('Consultor cadastrado!', 'sucesso');
+    }
+    fecharModalConsultor();
+    carregarConsultores();
+  } catch (e) {
+    toast('Erro ao salvar: ' + e.message, 'erro');
+  }
+}
+
+async function toggleConsultorAtivo(id, novoAtivo) {
+  const acao = novoAtivo ? 'reativar' : 'inativar';
+  if (!confirm(`Confirma ${acao} este consultor?`)) return;
+  try {
+    await sb(`consultores?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ ativo: novoAtivo, atualizado_em: new Date().toISOString() })
+    });
+    toast(`Consultor ${novoAtivo ? 'reativado' : 'inativado'}!`, 'sucesso');
+    carregarConsultores();
+  } catch (e) {
     toast('Erro: ' + e.message, 'erro');
   }
 }
