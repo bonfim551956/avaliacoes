@@ -638,7 +638,18 @@ async function sb(endpoint, opts = {}) {
     const txt = await res.text();
     throw new Error(`Supabase ${res.status}: ${txt}`);
   }
-  return res.status === 204 ? null : res.json();
+  // Se é return=minimal ou status 204, não tenta parsear JSON
+  if (res.status === 204 || (opts.prefer && opts.prefer.includes('return=minimal'))) {
+    return null;
+  }
+  // Tenta parsear JSON; se corpo vazio, retorna null
+  const txt = await res.text();
+  if (!txt || !txt.trim()) return null;
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return null;
+  }
 }
 
 function toast(msg, tipo = 'sucesso') {
@@ -1697,7 +1708,7 @@ async function salvarConsultor() {
   
   if (!nome) { toast('Nome é obrigatório', 'erro'); return; }
   
-  // Processa variantes: separa por vírgula, remove espaços, remove duplicatas, adiciona o nome se não estiver
+  // Processa variantes: separa por vírgula, normaliza, remove duplicatas, adiciona o nome se não estiver
   let variantes = variantesRaw
     ? variantesRaw.split(',').map(v => v.trim().toLowerCase()).filter(v => v.length > 0)
     : [];
@@ -1712,16 +1723,16 @@ async function salvarConsultor() {
       // Edição
       await sb(`consultores?id=eq.${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(payload)
+        prefer: 'return=minimal',
+        body: payload
       });
       toast('Consultor atualizado!', 'sucesso');
     } else {
       // Criação
       await sb('consultores', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(payload)
+        prefer: 'return=minimal',
+        body: payload
       });
       toast('Consultor cadastrado!', 'sucesso');
     }
@@ -1738,8 +1749,8 @@ async function toggleConsultorAtivo(id, novoAtivo) {
   try {
     await sb(`consultores?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ ativo: novoAtivo, atualizado_em: new Date().toISOString() })
+      prefer: 'return=minimal',
+      body: { ativo: novoAtivo, atualizado_em: new Date().toISOString() }
     });
     toast(`Consultor ${novoAtivo ? 'reativado' : 'inativado'}!`, 'sucesso');
     carregarConsultores();
