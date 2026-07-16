@@ -1867,28 +1867,51 @@ function atualizarPillGoogle(ok) {
 }
 
 async function conectarGoogle() {
-  toast('Abrindo autorização do Google...', 'info');
-  try {
-    // Chama a função que retorna a URL de autorização
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/google-oauth-callback?action=start`, {
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'apikey': SUPABASE_KEY
-      }
-    });
-    const data = await res.json();
-    if (data.auth_url) {
-      window.open(data.auth_url, '_blank', 'width=600,height=700');
-      toast('Autorize na janela do Google. Depois clique em "Testar conexão".', 'info');
-    } else {
-      // Fallback: tenta URL padrão do OAuth manual
-      const redirectUri = `${SUPABASE_URL}/functions/v1/google-oauth-callback`;
-      toast('Peça o link OAuth ao administrador ou reconecte pela função google-oauth-callback', 'error');
-    }
-  } catch (e) {
-    toast('Erro: ' + e.message, 'error');
+  // Monta URL de autorização do Google OAuth 2.0 direto
+  const CLIENT_ID = '794088324983-mao9moij2oc29k5snoqtnjnqb7025k5h.apps.googleusercontent.com';
+  const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/google-oauth-callback`;
+  const SCOPES = [
+    'https://www.googleapis.com/auth/business.manage',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'openid'
+  ].join(' ');
+  
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'code',
+    scope: SCOPES,
+    access_type: 'offline',   // essencial pra receber refresh_token
+    prompt: 'consent',         // força tela de consentimento (garante refresh_token novo)
+    include_granted_scopes: 'true'
+  });
+  
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  
+  toast('Abrindo autorização do Google em nova aba...', 'info');
+  
+  // Abre em nova aba
+  const janela = window.open(authUrl, '_blank', 'width=600,height=700,left=200,top=100');
+  
+  if (!janela) {
+    toast('Popup bloqueado! Permita popups desse site e tente novamente.', 'error');
+    return;
   }
+  
+  // Verifica quando a janela fechar (aproximado)
+  const check = setInterval(() => {
+    if (janela.closed) {
+      clearInterval(check);
+      toast('Verificando conexão...', 'info');
+      setTimeout(() => {
+        carregarStatusGoogle();
+        atualizarBadges();
+      }, 2000);
+    }
+  }, 1000);
 }
+
+// Se você precisar mudar o CLIENT_ID: pegue em Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
 
 async function testarConexao() {
   const box = document.getElementById('teste-conexao-resultado');
