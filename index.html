@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -590,6 +590,13 @@
       <button class="btn btn-secondary btn-sm" onclick="sincronizarAgora()">
         <i class="ti ti-refresh"></i> Sincronizar
       </button>
+      <div style="display:flex; align-items:center; gap:6px; padding:6px 12px; background:var(--teal-light); border-radius:20px; font-size:13px; color:var(--teal-dark);">
+        <i class="ti ti-user-circle" style="font-size:16px;"></i>
+        <span id="user-nome">usuário</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="fazerLogout()" title="Sair">
+        <i class="ti ti-logout"></i>
+      </button>
     </div>
   </div>
 </div>
@@ -880,6 +887,29 @@
 </div>
 
 <div class="toast-container" id="toasts"></div>
+
+<script>
+// =====================================================
+// PROTEÇÃO DE ACESSO - executa antes de qualquer coisa
+// =====================================================
+(function() {
+  const CHAVE_SESSAO = 'idealize_avaliacoes_sessao';
+  let sessao = null;
+  try {
+    const raw = localStorage.getItem(CHAVE_SESSAO) || sessionStorage.getItem(CHAVE_SESSAO);
+    sessao = raw ? JSON.parse(raw) : null;
+  } catch {}
+  
+  if (!sessao || !sessao.expiraEm || sessao.expiraEm <= Date.now()) {
+    // Não logado ou sessão expirada - manda pro login
+    localStorage.removeItem(CHAVE_SESSAO);
+    sessionStorage.removeItem(CHAVE_SESSAO);
+    window.location.href = 'login.html';
+  }
+  // Guarda pra usar depois
+  window.__SESSAO_ATIVA = sessao;
+})();
+</script>
 
 <script>
 // =====================================================
@@ -2196,9 +2226,23 @@ async function sincronizarAgora() {
 }
 
 // =====================================================
+// AUTENTICAÇÃO
+// =====================================================
+function fazerLogout() {
+  if (!confirm('Deseja realmente sair?')) return;
+  localStorage.removeItem('idealize_avaliacoes_sessao');
+  sessionStorage.removeItem('idealize_avaliacoes_sessao');
+  window.location.href = 'login.html';
+}
+
+// =====================================================
 // INIT
 // =====================================================
 window.addEventListener('DOMContentLoaded', () => {
+  // Mostra nome do usuário logado
+  if (window.__SESSAO_ATIVA && window.__SESSAO_ATIVA.usuario) {
+    document.getElementById('user-nome').textContent = window.__SESSAO_ATIVA.usuario;
+  }
   carregarDashboard();
   carregarStatusGoogle();
   atualizarBadges();
