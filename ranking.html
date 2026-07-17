@@ -493,6 +493,10 @@
   <div class="hero-inner">
     <h2>Quem está fazendo a diferença hoje?</h2>
     <p>Ranking em tempo real das menções em avaliações 5 estrelas no Google</p>
+    <div style="display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:8px 16px; background:rgba(245,154,42,0.25); border:1px solid rgba(245,154,42,0.5); border-radius:20px; font-size:13px; font-weight:500;">
+      <i class="ti ti-camera" style="font-size:16px;"></i>
+      <span>Avaliações COM FOTO valem <strong>2 pontos</strong> · sem foto valem <strong>1 ponto</strong></span>
+    </div>
   </div>
 </div>
 
@@ -702,7 +706,8 @@ async function carregar() {
     const periodo = calcularPeriodo();
     document.getElementById('periodo-info').textContent = periodo.label;
     
-    let q = 'avaliacoes?select=consultor_detectado,loja,data_avaliacao,cliente_nome&estrelas=eq.5&consultor_detectado=not.is.null';
+    // Busca com os campos de foto e pontuação
+    let q = 'avaliacoes?select=consultor_detectado,loja,data_avaliacao,cliente_nome,tem_foto,pontuacao&estrelas=eq.5&consultor_detectado=not.is.null';
     if (filtroLoja !== 'todas') q += `&loja=eq.${filtroLoja}`;
     if (periodo.ini) q += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
     if (periodo.fim) q += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
@@ -710,26 +715,38 @@ async function carregar() {
     
     const dados = await sb(q);
     
-    // Total geral no período
-    let qTotal = 'avaliacoes?select=id&estrelas=eq.5';
+    // Total geral 5★ no período
+    let qTotal = 'avaliacoes?select=id,tem_foto&estrelas=eq.5';
     if (filtroLoja !== 'todas') qTotal += `&loja=eq.${filtroLoja}`;
     if (periodo.ini) qTotal += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
     if (periodo.fim) qTotal += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
     const totalGeral = await sb(qTotal + '&limit=5000');
     
-    // Agrega ranking
-    const contagem = {};
+    const totalComFoto = totalGeral.filter(t => t.tem_foto).length;
+    const pctComFoto = totalGeral.length > 0 ? Math.round((totalComFoto / totalGeral.length) * 100) : 0;
+    
+    // Agrega ranking com PONTUAÇÃO (peso 2 se tem foto)
+    const stats = {};
     dados.forEach(d => {
       const chave = `${d.consultor_detectado}|${d.loja}`;
-      contagem[chave] = (contagem[chave] || 0) + 1;
+      if (!stats[chave]) {
+        stats[chave] = { 
+          nome: d.consultor_detectado, 
+          loja: d.loja,
+          mencoes: 0,
+          pontos: 0,
+          com_foto: 0,
+          sem_foto: 0
+        };
+      }
+      stats[chave].mencoes += 1;
+      stats[chave].pontos += (d.pontuacao || 1);
+      if (d.tem_foto) stats[chave].com_foto += 1;
+      else stats[chave].sem_foto += 1;
     });
     
-    const rank = Object.entries(contagem)
-      .map(([k, v]) => {
-        const [nome, loja] = k.split('|');
-        return { nome, loja, total: v };
-      })
-      .sort((a, b) => b.total - a.total);
+    // Ordena por PONTOS (não menções)
+    const rank = Object.values(stats).sort((a, b) => b.pontos - a.pontos);
     
     // KPIs
     document.getElementById('kpis').innerHTML = `
@@ -739,17 +756,18 @@ async function carregar() {
         <p class="kpi-hint">${periodo.label}</p>
       </div>
       <div class="kpi">
+        <p class="kpi-label">Com foto anexada</p>
+        <p class="kpi-value">${totalComFoto}</p>
+        <p class="kpi-hint">${pctComFoto}% do total · peso 2</p>
+      </div>
+      <div class="kpi">
         <p class="kpi-label">Consultores mencionados</p>
         <p class="kpi-value">${rank.length}</p>
       </div>
       <div class="kpi">
-        <p class="kpi-label">Total de menções</p>
-        <p class="kpi-value">${dados.length}</p>
-      </div>
-      <div class="kpi">
         <p class="kpi-label">Líder do período</p>
         <p class="kpi-value" style="font-size:18px;">${rank[0] ? esc(rank[0].nome) : '—'}</p>
-        <p class="kpi-hint">${rank[0] ? `${rank[0].total} menções` : ''}</p>
+        <p class="kpi-hint">${rank[0] ? `${rank[0].pontos} pontos · ${rank[0].mencoes} menções` : ''}</p>
       </div>
     `;
     
@@ -763,22 +781,31 @@ async function carregar() {
             <div class="podium-medal pos-2">2</div>
             <p class="podium-name">${esc(p2.nome)}</p>
             <p class="podium-loja">${LOJAS[p2.loja] || p2.loja}</p>
-            <div class="podium-total">${p2.total}</div>
-            <div class="podium-total-label">menções</div>
+            <div class="podium-total">${p2.pontos}</div>
+            <div class="podium-total-label">pontos</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+              ${p2.mencoes} men${p2.mencoes !== 1 ? 'ções' : 'ção'} ${p2.com_foto > 0 ? `· <i class="ti ti-camera" style="font-size:11px;"></i> ${p2.com_foto}` : ''}
+            </div>
           </div>
           <div class="podium-card pos-1">
             <div class="podium-medal pos-1"><i class="ti ti-crown"></i></div>
             <p class="podium-name">${esc(p1.nome)}</p>
             <p class="podium-loja">${LOJAS[p1.loja] || p1.loja}</p>
-            <div class="podium-total">${p1.total}</div>
-            <div class="podium-total-label">menções</div>
+            <div class="podium-total">${p1.pontos}</div>
+            <div class="podium-total-label">pontos</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">
+              ${p1.mencoes} men${p1.mencoes !== 1 ? 'ções' : 'ção'} ${p1.com_foto > 0 ? `· <i class="ti ti-camera" style="font-size:12px;"></i> ${p1.com_foto} com foto` : ''}
+            </div>
           </div>
           <div class="podium-card pos-3">
             <div class="podium-medal pos-3">3</div>
             <p class="podium-name">${esc(p3.nome)}</p>
             <p class="podium-loja">${LOJAS[p3.loja] || p3.loja}</p>
-            <div class="podium-total">${p3.total}</div>
-            <div class="podium-total-label">menções</div>
+            <div class="podium-total">${p3.pontos}</div>
+            <div class="podium-total-label">pontos</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+              ${p3.mencoes} men${p3.mencoes !== 1 ? 'ções' : 'ção'} ${p3.com_foto > 0 ? `· <i class="ti ti-camera" style="font-size:11px;"></i> ${p3.com_foto}` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -790,8 +817,11 @@ async function carregar() {
               <div class="podium-medal pos-${i+1}">${i === 0 ? '<i class="ti ti-crown"></i>' : i+1}</div>
               <p class="podium-name">${esc(r.nome)}</p>
               <p class="podium-loja">${LOJAS[r.loja] || r.loja}</p>
-              <div class="podium-total">${r.total}</div>
-              <div class="podium-total-label">menções</div>
+              <div class="podium-total">${r.pontos}</div>
+              <div class="podium-total-label">pontos</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+                ${r.mencoes} men${r.mencoes !== 1 ? 'ções' : 'ção'} ${r.com_foto > 0 ? `· <i class="ti ti-camera"></i> ${r.com_foto}` : ''}
+              </div>
             </div>
           `).join('')}
         </div>
@@ -825,11 +855,19 @@ async function carregar() {
             <div class="ranking-position" style="${bg}">${pos}º</div>
             <div class="ranking-info">
               <p class="ranking-name">${esc(r.nome)}</p>
-              <p class="ranking-loja">${LOJAS[r.loja] || r.loja}</p>
+              <p class="ranking-loja">
+                ${LOJAS[r.loja] || r.loja}
+                ${r.com_foto > 0 ? `<span style="color:var(--orange); margin-left:8px;"><i class="ti ti-camera" style="font-size:11px;"></i> ${r.com_foto} com foto</span>` : ''}
+              </p>
             </div>
-            <div class="ranking-count">
-              ${r.total}
-              <span class="ranking-count-label">menç${r.total !== 1 ? 'ões' : 'ão'}</span>
+            <div style="text-align:right;">
+              <div class="ranking-count">
+                ${r.pontos}
+                <span class="ranking-count-label">pontos</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+                ${r.mencoes} men${r.mencoes !== 1 ? 'ções' : 'ção'}
+              </div>
             </div>
           </div>
         `;
