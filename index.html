@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -590,6 +590,9 @@
       <button class="btn btn-secondary btn-sm" onclick="sincronizarAgora()">
         <i class="ti ti-refresh"></i> Sincronizar
       </button>
+      <button class="btn btn-ghost btn-sm" onclick="forcarRecarregar()" title="Atualizar tela sem buscar do Google">
+        <i class="ti ti-reload"></i>
+      </button>
       <div style="display:flex; align-items:center; gap:6px; padding:6px 12px; background:var(--teal-light); border-radius:20px; font-size:13px; color:var(--teal-dark);">
         <i class="ti ti-user-circle" style="font-size:16px;"></i>
         <span id="user-nome">usuário</span>
@@ -704,6 +707,10 @@
       <button class="filter-pill active" data-hist-estrelas="todas" onclick="filtrarHistEstrelas('todas')">Todas</button>
       <button class="filter-pill" data-hist-estrelas="5" onclick="filtrarHistEstrelas('5')">5 estrelas</button>
       <button class="filter-pill" data-hist-estrelas="menos5" onclick="filtrarHistEstrelas('menos5')">Menos de 5</button>
+      <span class="filter-label" style="margin-left:12px;">Foto</span>
+      <button class="filter-pill active" data-hist-foto="todas" onclick="filtrarHistFoto('todas')">Todas</button>
+      <button class="filter-pill" data-hist-foto="com" onclick="filtrarHistFoto('com')">Com foto</button>
+      <button class="filter-pill" data-hist-foto="sem" onclick="filtrarHistFoto('sem')">Sem foto</button>
     </div>
     <div class="card">
       <div class="card-header">
@@ -926,9 +933,44 @@ const LOJAS = {
 };
 
 // =====================================================
+// CACHE DE DADOS (30 segundos)
+// =====================================================
+const CACHE = {
+  data: {},
+  ttl: 30 * 1000, // 30 segundos
+  get(key) {
+    const item = this.data[key];
+    if (!item) return null;
+    if (Date.now() - item.time > this.ttl) {
+      delete this.data[key];
+      return null;
+    }
+    return item.value;
+  },
+  set(key, value) {
+    this.data[key] = { value, time: Date.now() };
+  },
+  invalidar(prefixo = null) {
+    if (!prefixo) { this.data = {}; return; }
+    Object.keys(this.data).forEach(k => {
+      if (k.startsWith(prefixo)) delete this.data[k];
+    });
+  }
+};
+
+// =====================================================
 // HELPERS
 // =====================================================
 async function sb(path, opts = {}) {
+  // Só cacheia GETs sem opts customizadas
+  const usarCache = !opts.method || opts.method === 'GET';
+  const cacheKey = usarCache ? `sb:${path}` : null;
+  
+  if (cacheKey) {
+    const cached = CACHE.get(cacheKey);
+    if (cached !== null) return cached;
+  }
+  
   const url = path.startsWith('http') ? path : `${SUPABASE_URL}/rest/v1/${path}`;
   const headers = {
     'apikey': SUPABASE_KEY,
@@ -943,7 +985,30 @@ async function sb(path, opts = {}) {
     throw new Error(`${res.status}: ${txt.substring(0, 200)}`);
   }
   if (res.status === 204) return null;
-  return await res.json();
+  const data = await res.json();
+  
+  if (cacheKey) CACHE.set(cacheKey, data);
+  return data;
+}
+
+async function sbCount(path) {
+  const cacheKey = `count:${path}`;
+  const cached = CACHE.get(cacheKey);
+  if (cached !== null) return cached;
+  
+  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  const res = await fetch(url, {
+    method: 'HEAD',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer': 'count=exact'
+    }
+  });
+  const contentRange = res.headers.get('content-range');
+  const total = contentRange ? parseInt(contentRange.split('/')[1]) : 0;
+  CACHE.set(cacheKey, total);
+  return total;
 }
 
 async function callFn(nome, body = {}) {
@@ -1003,12 +1068,10 @@ function trocarTab(nome) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   
-  // Ativa botão: se veio de clique usa event.target, senão busca pelo onclick
   if (typeof event !== 'undefined' && event && event.target) {
     const btn = event.target.closest('.tab-btn');
     if (btn) btn.classList.add('active');
   } else {
-    // Chamada programática: busca o botão que chama essa tab
     document.querySelectorAll('.tab-btn').forEach(b => {
       if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${nome}'`)) {
         b.classList.add('active');
@@ -1019,6 +1082,7 @@ function trocarTab(nome) {
   const conteudo = document.getElementById(`tab-${nome}`);
   if (conteudo) conteudo.classList.add('active');
   
+  // Carrega dados só se ainda não carregou OU se cache expirou
   if (nome === 'dashboard') carregarDashboard();
   if (nome === 'ranking') carregarRanking();
   if (nome === 'historico') carregarHistorico();
@@ -1028,42 +1092,71 @@ function trocarTab(nome) {
   if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
 }
 
+// Botão de refresh manual (força recarregar ignorando cache)
+function forcarRecarregar() {
+  CACHE.invalidar();
+  const tabAtiva = document.querySelector('.tab-content.active');
+  if (tabAtiva) {
+    const nome = tabAtiva.id.replace('tab-', '');
+    if (nome === 'dashboard') carregarDashboard();
+    else if (nome === 'ranking') carregarRanking();
+    else if (nome === 'historico') carregarHistorico();
+    else if (nome === 'aprovacoes') carregarAprovacoes();
+    else if (nome === 'tratativas') carregarTratativas();
+    else if (nome === 'consultores') carregarConsultores();
+    else if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
+  }
+  atualizarBadges();
+  toast('Dados atualizados', 'success');
+}
+
 // =====================================================
 // DASHBOARD
 // =====================================================
 async function carregarDashboard() {
   try {
-    const [total, positivas, pendentes, tratativas, recentes] = await Promise.all([
-      sb('avaliacoes?select=id'),
-      sb('avaliacoes?select=id&estrelas=eq.5'),
-      sb('avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao'),
-      sb('avaliacoes?select=id&estrelas=lt.5&tratativa_status=eq.aguardando'),
-      sb('avaliacoes?select=*&order=data_avaliacao.desc&limit=10')
+    // Usa HEAD count pra ser MUITO mais rápido (não traz dados, só quantidade)
+    const [totalN, positivasN, comFotoN, pendentesN, tratativasN, recentes, pontosData] = await Promise.all([
+      sbCount('avaliacoes?select=id'),
+      sbCount('avaliacoes?select=id&estrelas=eq.5'),
+      sbCount('avaliacoes?select=id&estrelas=eq.5&tem_foto=eq.true'),
+      sbCount('avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao'),
+      sbCount('avaliacoes?select=id&estrelas=lt.5&tratativa_status=eq.aguardando'),
+      sb('avaliacoes?select=id,cliente_nome,loja,data_avaliacao,estrelas,texto,consultor_detectado,tem_foto&order=data_avaliacao.desc&limit=10'),
+      sb('avaliacoes?select=pontuacao&estrelas=eq.5&limit=5000')
     ]);
     
-    const totalNum = total.length;
-    const positivasNum = positivas.length;
-    const pendentesNum = pendentes.length;
-    const tratativasNum = tratativas.length;
-    const pct5 = totalNum > 0 ? ((positivasNum / totalNum) * 100).toFixed(1) : '0.0';
+    const pct5 = totalN > 0 ? ((positivasN / totalN) * 100).toFixed(1) : '0.0';
+    const pctFoto = positivasN > 0 ? Math.round((comFotoN / positivasN) * 100) : 0;
+    const totalPontos = pontosData.reduce((sum, p) => sum + (p.pontuacao || 1), 0);
     
     document.getElementById('kpi-dashboard').innerHTML = `
       <div class="kpi">
         <p class="kpi-label">Total de avaliações</p>
-        <p class="kpi-value">${totalNum}</p>
+        <p class="kpi-value">${totalN}</p>
       </div>
       <div class="kpi">
         <p class="kpi-label">5 estrelas</p>
-        <p class="kpi-value">${positivasNum}</p>
+        <p class="kpi-value">${positivasN}</p>
         <p class="kpi-hint">${pct5}% do total</p>
       </div>
       <div class="kpi">
+        <p class="kpi-label">Com foto anexada</p>
+        <p class="kpi-value">${comFotoN}</p>
+        <p class="kpi-hint">${pctFoto}% das 5 estrelas · peso 2</p>
+      </div>
+      <div class="kpi">
+        <p class="kpi-label">Pontuação total</p>
+        <p class="kpi-value">${totalPontos}</p>
+        <p class="kpi-hint">Com peso das fotos</p>
+      </div>
+      <div class="kpi">
         <p class="kpi-label">Aguardando confirmação</p>
-        <p class="kpi-value">${pendentesNum}</p>
+        <p class="kpi-value">${pendentesN}</p>
       </div>
       <div class="kpi">
         <p class="kpi-label">Tratativas pendentes</p>
-        <p class="kpi-value">${tratativasNum}</p>
+        <p class="kpi-value">${tratativasN}</p>
       </div>
     `;
     
@@ -1078,6 +1171,7 @@ async function carregarDashboard() {
             <span class="muted">${fmtData(r.data_avaliacao)}</span>
             <span class="sep">•</span>
             ${estrelas(r.estrelas)}
+            ${r.tem_foto ? '<span class="sep">•</span><span style="color:var(--orange); font-size:12px; font-weight:600;"><i class="ti ti-camera" style="font-size:13px; vertical-align:-2px;"></i> com foto</span>' : ''}
           </div>
           ${r.consultor_detectado ? `<span class="review-tag approved"><i class="ti ti-user"></i> ${escapeHtml(r.consultor_detectado)}</span>` : ''}
         </div>
@@ -1093,15 +1187,15 @@ async function carregarDashboard() {
 
 async function atualizarBadges() {
   try {
-    const [aprov, trat] = await Promise.all([
-      sb('avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao&limit=200'),
-      sb('avaliacoes?select=id&estrelas=lt.5&tratativa_status=eq.aguardando&limit=200')
+    const [aprovN, tratN] = await Promise.all([
+      sbCount('avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao'),
+      sbCount('avaliacoes?select=id&estrelas=lt.5&tratativa_status=eq.aguardando')
     ]);
     const bA = document.getElementById('badge-aprovacoes');
     const bT = document.getElementById('badge-tratativas');
-    if (aprov.length > 0) { bA.textContent = aprov.length; bA.classList.remove('hidden'); }
+    if (aprovN > 0) { bA.textContent = aprovN; bA.classList.remove('hidden'); }
     else bA.classList.add('hidden');
-    if (trat.length > 0) { bT.textContent = trat.length; bT.classList.remove('hidden'); }
+    if (tratN > 0) { bT.textContent = tratN; bT.classList.remove('hidden'); }
     else bT.classList.add('hidden');
   } catch {}
 }
@@ -1214,7 +1308,10 @@ async function aprovarDeteccao(id) {
     });
     if (r.sucesso) {
       toast(r.mensagem, 'success');
+      CACHE.invalidar('sb:avaliacoes');
+      CACHE.invalidar('count:avaliacoes');
       carregarAprovacoes();
+      atualizarBadges();
     } else {
       toast('Erro: ' + (r.erro || 'desconhecido'), 'error');
     }
@@ -1367,6 +1464,8 @@ async function salvarTratativa(id, status = 'em_analise') {
       method: 'PATCH',
       body: { tratativa_resposta: resp, tratativa_observacao: obs, tratativa_status: status }
     });
+    CACHE.invalidar('sb:avaliacoes');
+    CACHE.invalidar('count:avaliacoes');
     toast('Rascunho salvo', 'success');
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
@@ -1395,8 +1494,11 @@ async function aprovarEnviarTratativa(id) {
       }
     });
     
+    CACHE.invalidar('sb:avaliacoes');
+    CACHE.invalidar('count:avaliacoes');
     toast('Resposta enviada ao Google', 'success');
     carregarTratativas();
+    atualizarBadges();
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
@@ -1410,8 +1512,11 @@ async function ignorarTratativa(id) {
       method: 'PATCH',
       body: { tratativa_status: 'ignorada', tratativa_observacao: obs }
     });
+    CACHE.invalidar('sb:avaliacoes');
+    CACHE.invalidar('count:avaliacoes');
     toast('Marcada como ignorada', 'success');
     carregarTratativas();
+    atualizarBadges();
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
@@ -1424,8 +1529,11 @@ async function reabrirTratativa(id) {
       method: 'PATCH',
       body: { tratativa_status: 'aguardando' }
     });
+    CACHE.invalidar('sb:avaliacoes');
+    CACHE.invalidar('count:avaliacoes');
     toast('Reaberta', 'success');
     carregarTratativas();
+    atualizarBadges();
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
@@ -1544,7 +1652,7 @@ async function carregarRanking() {
     const periodo = calcularPeriodo();
     document.getElementById('rank-periodo-info').textContent = periodo.label;
     
-    let q = 'avaliacoes?select=consultor_detectado,loja,data_avaliacao&estrelas=eq.5&consultor_detectado=not.is.null';
+    let q = 'avaliacoes?select=consultor_detectado,loja,data_avaliacao,tem_foto,pontuacao&estrelas=eq.5&consultor_detectado=not.is.null';
     if (filtroRankLoja !== 'todas') q += `&loja=eq.${filtroRankLoja}`;
     if (periodo.ini) q += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
     if (periodo.fim) q += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
@@ -1552,18 +1660,26 @@ async function carregarRanking() {
     
     const dados = await sb(q);
     
-    const contagem = {};
+    // Agrega com PONTUAÇÃO (peso 2 se tem foto)
+    const stats = {};
     dados.forEach(d => {
       const chave = `${d.consultor_detectado}|${d.loja}`;
-      contagem[chave] = (contagem[chave] || 0) + 1;
+      if (!stats[chave]) {
+        stats[chave] = { 
+          nome: d.consultor_detectado, 
+          loja: d.loja,
+          mencoes: 0,
+          pontos: 0,
+          com_foto: 0
+        };
+      }
+      stats[chave].mencoes += 1;
+      stats[chave].pontos += (d.pontuacao || 1);
+      if (d.tem_foto) stats[chave].com_foto += 1;
     });
     
-    const rank = Object.entries(contagem)
-      .map(([k, v]) => {
-        const [nome, loja] = k.split('|');
-        return { nome, loja, total: v };
-      })
-      .sort((a, b) => b.total - a.total);
+    // Ordena por PONTOS
+    const rank = Object.values(stats).sort((a, b) => b.pontos - a.pontos);
     
     if (!rank.length) {
       document.getElementById('lista-ranking').innerHTML = '<div class="empty"><i class="ti ti-trophy"></i><h3>Ranking vazio</h3><p>Sem menções no período selecionado.</p></div>';
@@ -1579,6 +1695,8 @@ async function carregarRanking() {
               <th>Consultor</th>
               <th>Loja</th>
               <th style="text-align:right;">Menções</th>
+              <th style="text-align:right;">Com foto</th>
+              <th style="text-align:right;">Pontos</th>
             </tr>
           </thead>
           <tbody>
@@ -1587,7 +1705,11 @@ async function carregarRanking() {
                 <td><strong style="color:var(--teal-dark);">${i+1}</strong></td>
                 <td><strong>${escapeHtml(r.nome)}</strong></td>
                 <td class="muted">${LOJAS[r.loja] || r.loja}</td>
-                <td style="text-align:right;"><strong>${r.total}</strong></td>
+                <td style="text-align:right;">${r.mencoes}</td>
+                <td style="text-align:right;">
+                  ${r.com_foto > 0 ? `<span style="color:var(--orange); font-weight:600;"><i class="ti ti-camera" style="font-size:12px;"></i> ${r.com_foto}</span>` : '<span class="muted">—</span>'}
+                </td>
+                <td style="text-align:right;"><strong style="color:var(--teal); font-size:16px;">${r.pontos}</strong></td>
               </tr>
             `).join('')}
           </tbody>
@@ -1604,12 +1726,12 @@ function exportarRankingCSV() {
   const periodo = calcularPeriodo();
   const linhas = document.querySelectorAll('#tab-ranking .table tbody tr');
   let csv = `Ranking - ${periodo.label}\n\n`;
-  csv += 'Posição,Consultor,Loja,Menções\n';
+  csv += 'Posição,Consultor,Loja,Menções,Com foto,Pontos\n';
   linhas.forEach(tr => {
-    const cols = Array.from(tr.querySelectorAll('td')).map(td => `"${td.textContent.trim()}"`);
+    const cols = Array.from(tr.querySelectorAll('td')).map(td => `"${td.textContent.trim().replace(/[📷—]/g, '').trim()}"`);
     csv += cols.join(',') + '\n';
   });
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `ranking-${Date.now()}.csv`; a.click();
@@ -1620,6 +1742,7 @@ function exportarRankingCSV() {
 // =====================================================
 let filtroHistLoja = 'todas';
 let filtroHistEstrelas = 'todas';
+let filtroHistFoto = 'todas';
 
 function filtrarHistLoja(l) {
   filtroHistLoja = l;
@@ -1637,12 +1760,22 @@ function filtrarHistEstrelas(e) {
   carregarHistorico();
 }
 
+function filtrarHistFoto(f) {
+  filtroHistFoto = f;
+  document.querySelectorAll('[data-hist-foto]').forEach(el => {
+    el.classList.toggle('active', el.dataset.histFoto === f);
+  });
+  carregarHistorico();
+}
+
 async function carregarHistorico() {
   try {
     let q = 'avaliacoes?select=*&order=data_avaliacao.desc&limit=200';
     if (filtroHistLoja !== 'todas') q += `&loja=eq.${filtroHistLoja}`;
     if (filtroHistEstrelas === '5') q += `&estrelas=eq.5`;
     else if (filtroHistEstrelas === 'menos5') q += `&estrelas=lt.5`;
+    if (filtroHistFoto === 'com') q += `&tem_foto=eq.true`;
+    else if (filtroHistFoto === 'sem') q += `&tem_foto=eq.false`;
     
     const dados = await sb(q);
     
@@ -1682,6 +1815,7 @@ async function carregarHistorico() {
               <span class="muted">${fmtData(d.data_avaliacao)}</span>
               <span class="sep">•</span>
               ${estrelas(d.estrelas)}
+              ${d.tem_foto ? `<span class="sep">•</span><span style="color:var(--orange); font-size:12px; font-weight:600;"><i class="ti ti-camera" style="font-size:13px; vertical-align:-2px;"></i> Com foto (peso 2)</span>` : ''}
               ${d.consultor_detectado ? `<span class="sep">•</span><span class="review-tag approved" style="text-transform:none; letter-spacing:0;"><i class="ti ti-user"></i> ${escapeHtml(d.consultor_detectado)}</span>` : ''}
             </div>
             ${statusLabel(d)}
@@ -1719,17 +1853,18 @@ function statusLabel(d) {
 
 function exportarHistoricoCSV() {
   toast('Exportando...', 'info');
-  // Reload dados pra exportar
   (async () => {
     let q = 'avaliacoes?select=*&order=data_avaliacao.desc&limit=1000';
     if (filtroHistLoja !== 'todas') q += `&loja=eq.${filtroHistLoja}`;
     if (filtroHistEstrelas === '5') q += `&estrelas=eq.5`;
     else if (filtroHistEstrelas === 'menos5') q += `&estrelas=lt.5`;
+    if (filtroHistFoto === 'com') q += `&tem_foto=eq.true`;
+    else if (filtroHistFoto === 'sem') q += `&tem_foto=eq.false`;
     const dados = await sb(q);
-    let csv = 'Data,Cliente,Loja,Estrelas,Consultor,Situação,Mensagem do cliente\n';
+    let csv = 'Data,Cliente,Loja,Estrelas,Consultor,Com foto,Pontos,Situação,Mensagem do cliente\n';
     dados.forEach(d => {
       const texto = (limparTraducao(d.texto) || '').replace(/"/g, '""').replace(/\n/g, ' ');
-      csv += `"${fmtData(d.data_avaliacao)}","${d.cliente_nome.replace(/"/g, '""')}","${LOJAS[d.loja] || d.loja}","${d.estrelas}","${d.consultor_detectado || ''}","${d.status_deteccao || ''}","${texto}"\n`;
+      csv += `"${fmtData(d.data_avaliacao)}","${d.cliente_nome.replace(/"/g, '""')}","${LOJAS[d.loja] || d.loja}","${d.estrelas}","${d.consultor_detectado || ''}","${d.tem_foto ? 'Sim' : 'Não'}","${d.pontuacao || 1}","${d.status_deteccao || ''}","${texto}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -2204,6 +2339,9 @@ async function sincronizarAgora() {
         });
       }
       toast(`Sincronização concluída. ${novas} nova(s) de ${total} avaliações.`, 'success');
+      
+      // Invalida cache pra pegar dados frescos
+      CACHE.invalidar();
       
       // Recarrega dados da aba atual sem trocar de aba
       const tabAtiva = document.querySelector('.tab-content.active');
