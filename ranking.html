@@ -410,6 +410,105 @@
     margin-left: 4px;
   }
   
+  /* MAIN TABS */
+  .main-tab {
+    padding: 14px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .main-tab:hover { color: var(--teal-dark); }
+  .main-tab.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+  }
+  .main-tab .ti { font-size: 18px; }
+  .main-tab-content { display: none; }
+  .main-tab-content.active { display: block; }
+  
+  /* REVIEW CARDS (Histórico) */
+  .review-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    transition: border-color 0.15s;
+  }
+  .review-item:hover { border-color: var(--teal); }
+  .review-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .review-cliente {
+    font-weight: 700;
+    color: var(--teal-dark);
+    font-size: 15px;
+  }
+  .review-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .review-meta-line .sep { color: #C7CFD3; }
+  .review-stars {
+    color: var(--orange);
+    letter-spacing: 2px;
+    font-size: 14px;
+  }
+  .review-consultor-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: var(--teal-light);
+    color: var(--teal-dark);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .review-foto-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: rgba(245,154,42,0.15);
+    color: var(--orange);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .review-texto {
+    background: var(--bg);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    border-left: 3px solid var(--teal);
+  }
+  .review-texto.vazio {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left-color: var(--border);
+  }
+  
   /* EMPTY */
   .empty {
     text-align: center;
@@ -500,8 +599,23 @@
   </div>
 </div>
 
+<!-- ABAS -->
+<div style="background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:99;">
+  <div style="max-width:1200px; margin:0 auto; padding:0 24px; display:flex; gap:4px;">
+    <button class="main-tab active" data-tab="ranking" onclick="trocarAba('ranking')">
+      <i class="ti ti-trophy"></i> Ranking
+    </button>
+    <button class="main-tab" data-tab="historico" onclick="trocarAba('historico')">
+      <i class="ti ti-history"></i> Histórico de avaliações
+    </button>
+  </div>
+</div>
+
 <!-- MAIN -->
 <div class="main">
+  
+  <!-- ==================== TAB: RANKING ==================== -->
+  <div id="tab-ranking" class="main-tab-content active">
   
   <!-- FILTERS -->
   <div class="filters-card">
@@ -552,6 +666,56 @@
       <div class="loading"><span class="spinner"></span> Carregando ranking...</div>
     </div>
   </div>
+  
+  </div>
+  <!-- ==================== FIM TAB RANKING ==================== -->
+  
+  <!-- ==================== TAB: HISTÓRICO ==================== -->
+  <div id="tab-historico" class="main-tab-content">
+    
+    <!-- FILTROS HISTÓRICO -->
+    <div class="filters-card">
+      <div class="filters-row">
+        <span class="filter-label">Período</span>
+        <button class="filter-pill active" data-hist-periodo="hoje" onclick="filtrarHistPeriodo('hoje')">Hoje</button>
+        <button class="filter-pill" data-hist-periodo="ontem" onclick="filtrarHistPeriodo('ontem')">Ontem</button>
+        <button class="filter-pill" data-hist-periodo="semana" onclick="filtrarHistPeriodo('semana')">Esta semana</button>
+        <button class="filter-pill" data-hist-periodo="mes" onclick="filtrarHistPeriodo('mes')">Este mês</button>
+        <button class="filter-pill" data-hist-periodo="mes_passado" onclick="filtrarHistPeriodo('mes_passado')">Mês passado</button>
+        <button class="filter-pill" data-hist-periodo="tudo" onclick="filtrarHistPeriodo('tudo')">Tudo</button>
+        <button class="filter-pill" data-hist-periodo="custom" onclick="abrirHistCustom()">Personalizado</button>
+        <span class="period-info" id="hist-periodo-info"></span>
+      </div>
+      <div class="filters-row">
+        <span class="filter-label">Loja</span>
+        <button class="filter-pill active" data-hist-loja="todas" onclick="filtrarHistLoja('todas')">Todas</button>
+        <button class="filter-pill" data-hist-loja="sao_vicente" onclick="filtrarHistLoja('sao_vicente')">São Vicente</button>
+        <button class="filter-pill" data-hist-loja="campinas" onclick="filtrarHistLoja('campinas')">Campinas</button>
+        <button class="filter-pill" data-hist-loja="piracicaba" onclick="filtrarHistLoja('piracicaba')">Piracicaba</button>
+        <button class="filter-pill" data-hist-loja="sorocaba" onclick="filtrarHistLoja('sorocaba')">Sorocaba</button>
+      </div>
+      <div class="custom-box" id="hist-custom-box">
+        <span class="filter-label">De:</span>
+        <input type="date" class="input-date" id="hist-data-ini">
+        <span class="filter-label">Até:</span>
+        <input type="date" class="input-date" id="hist-data-fim">
+        <button class="btn-primary" onclick="aplicarHistCustom()"><i class="ti ti-check"></i> Aplicar</button>
+      </div>
+    </div>
+    
+    <!-- LISTA HISTÓRICO -->
+    <div class="ranking-card">
+      <div class="ranking-header">
+        <h3><i class="ti ti-history"></i> Avaliações 5 estrelas</h3>
+        <span id="hist-info" style="font-size:13px; color:var(--text-muted);"></span>
+      </div>
+      <div id="hist-lista">
+        <div class="loading"><span class="spinner"></span> Carregando avaliações...</div>
+      </div>
+    </div>
+    
+  </div>
+  <!-- ==================== FIM TAB HISTÓRICO ==================== -->
   
 </div>
 
@@ -888,12 +1052,217 @@ async function carregar() {
 }
 
 // =====================================================
+// TROCAR ABA
+// =====================================================
+let abaAtiva = 'ranking';
+
+function trocarAba(nome) {
+  abaAtiva = nome;
+  document.querySelectorAll('.main-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === nome);
+  });
+  document.querySelectorAll('.main-tab-content').forEach(el => {
+    el.classList.toggle('active', el.id === `tab-${nome}`);
+  });
+  
+  if (nome === 'historico') carregarHistorico();
+  else if (nome === 'ranking') carregar();
+}
+
+// =====================================================
+// HISTÓRICO PÚBLICO (só 5 estrelas)
+// =====================================================
+let filtroHistPeriodo = 'hoje';
+let filtroHistLoja = 'todas';
+let filtroHistCustom = { ini: null, fim: null };
+
+function filtrarHistPeriodo(p) {
+  filtroHistPeriodo = p;
+  document.querySelectorAll('[data-hist-periodo]').forEach(el => {
+    el.classList.toggle('active', el.dataset.histPeriodo === p);
+  });
+  if (p !== 'custom') {
+    document.getElementById('hist-custom-box').classList.remove('show');
+    carregarHistorico();
+  }
+}
+
+function filtrarHistLoja(l) {
+  filtroHistLoja = l;
+  document.querySelectorAll('[data-hist-loja]').forEach(el => {
+    el.classList.toggle('active', el.dataset.histLoja === l);
+  });
+  carregarHistorico();
+}
+
+function abrirHistCustom() {
+  const box = document.getElementById('hist-custom-box');
+  box.classList.add('show');
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('hist-data-ini').value = primeiroDia.toISOString().split('T')[0];
+  document.getElementById('hist-data-fim').value = hoje.toISOString().split('T')[0];
+}
+
+function aplicarHistCustom() {
+  const ini = document.getElementById('hist-data-ini').value;
+  const fim = document.getElementById('hist-data-fim').value;
+  if (!ini || !fim) { alert('Escolha as duas datas'); return; }
+  filtroHistPeriodo = 'custom';
+  filtroHistCustom = { ini, fim };
+  document.querySelectorAll('[data-hist-periodo]').forEach(el => {
+    el.classList.toggle('active', el.dataset.histPeriodo === 'custom');
+  });
+  carregarHistorico();
+}
+
+function calcularPeriodoHist() {
+  const hoje = new Date();
+  hoje.setHours(23, 59, 59, 999);
+  let ini, fim = hoje, label = '';
+  
+  switch (filtroHistPeriodo) {
+    case 'hoje': {
+      ini = new Date(hoje); ini.setHours(0,0,0,0);
+      label = ini.toLocaleDateString('pt-BR');
+      break;
+    }
+    case 'ontem': {
+      ini = new Date(hoje); ini.setDate(ini.getDate() - 1); ini.setHours(0,0,0,0);
+      fim = new Date(hoje); fim.setDate(fim.getDate() - 1); fim.setHours(23,59,59,999);
+      label = ini.toLocaleDateString('pt-BR');
+      break;
+    }
+    case 'semana': {
+      ini = new Date(hoje);
+      const diaSemana = ini.getDay();
+      ini.setDate(ini.getDate() - diaSemana);
+      ini.setHours(0,0,0,0);
+      label = `${ini.toLocaleDateString('pt-BR')} até ${hoje.toLocaleDateString('pt-BR')}`;
+      break;
+    }
+    case 'mes': {
+      ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      ini.setHours(0,0,0,0);
+      label = `${ini.toLocaleDateString('pt-BR')} até ${hoje.toLocaleDateString('pt-BR')}`;
+      break;
+    }
+    case 'mes_passado': {
+      ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      ini.setHours(0,0,0,0);
+      fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59, 999);
+      label = `${ini.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}`;
+      break;
+    }
+    case 'custom': {
+      if (filtroHistCustom.ini && filtroHistCustom.fim) {
+        ini = new Date(filtroHistCustom.ini + 'T00:00:00');
+        fim = new Date(filtroHistCustom.fim + 'T23:59:59');
+        label = `${ini.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}`;
+      }
+      break;
+    }
+    default:
+      ini = null; fim = null;
+      label = 'Todo o período';
+  }
+  return { ini, fim, label };
+}
+
+function limparTraducao(texto) {
+  if (!texto) return '';
+  const idx = texto.indexOf('(Translated by Google)');
+  return idx !== -1 ? texto.substring(0, idx).trim() : texto;
+}
+
+function fmtDataCurta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+async function carregarHistorico() {
+  try {
+    const periodo = calcularPeriodoHist();
+    document.getElementById('hist-periodo-info').textContent = periodo.label;
+    
+    // Só 5 estrelas
+    let q = 'avaliacoes?select=id,cliente_nome,loja,data_avaliacao,estrelas,texto,consultor_detectado,tem_foto&estrelas=eq.5&order=data_avaliacao.desc&limit=300';
+    if (filtroHistLoja !== 'todas') q += `&loja=eq.${filtroHistLoja}`;
+    if (periodo.ini) q += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
+    if (periodo.fim) q += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
+    
+    const dados = await sb(q);
+    
+    document.getElementById('hist-info').textContent = 
+      `${dados.length} avaliaç${dados.length !== 1 ? 'ões' : 'ão'}`;
+    
+    const listaEl = document.getElementById('hist-lista');
+    
+    if (!dados.length) {
+      listaEl.innerHTML = `
+        <div class="empty">
+          <i class="ti ti-inbox"></i>
+          <h3>Nenhuma avaliação no período</h3>
+          <p>Ajuste os filtros ou selecione um período diferente.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    listaEl.innerHTML = dados.map(d => {
+      const textoLimpo = limparTraducao(d.texto);
+      const estrelasStr = '★'.repeat(d.estrelas) + '☆'.repeat(5 - d.estrelas);
+      
+      return `
+        <div class="review-item">
+          <div class="review-head">
+            <div>
+              <div class="review-cliente">${esc(d.cliente_nome)}</div>
+              <div class="review-meta-line">
+                <span>${LOJAS[d.loja] || d.loja}</span>
+                <span class="sep">•</span>
+                <span>${fmtDataCurta(d.data_avaliacao)}</span>
+                <span class="sep">•</span>
+                <span class="review-stars">${estrelasStr}</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              ${d.tem_foto ? `<span class="review-foto-badge"><i class="ti ti-camera" style="font-size:12px;"></i> Com foto</span>` : ''}
+              ${d.consultor_detectado ? `<span class="review-consultor-badge"><i class="ti ti-user" style="font-size:12px;"></i> ${esc(d.consultor_detectado)}</span>` : ''}
+            </div>
+          </div>
+          ${textoLimpo 
+            ? `<div class="review-texto">${esc(textoLimpo)}</div>`
+            : `<div class="review-texto vazio">Sem comentário escrito pelo cliente</div>`
+          }
+        </div>
+      `;
+    }).join('');
+    
+    document.getElementById('ult-atualiz').textContent = new Date().toLocaleTimeString('pt-BR');
+    
+  } catch (e) {
+    document.getElementById('hist-lista').innerHTML = `
+      <div class="empty">
+        <i class="ti ti-alert-circle"></i>
+        <h3>Erro ao carregar</h3>
+        <p>${esc(e.message)}</p>
+      </div>
+    `;
+  }
+}
+
+// =====================================================
 // INIT + AUTO-REFRESH
 // =====================================================
 window.addEventListener('DOMContentLoaded', () => {
   carregar();
-  // Atualiza a cada 60 segundos
-  setInterval(carregar, 60000);
+  // Atualiza a cada 60 segundos a aba ativa
+  setInterval(() => {
+    if (abaAtiva === 'ranking') carregar();
+    else if (abaAtiva === 'historico') carregarHistorico();
+  }, 60000);
 });
 </script>
 </body>
