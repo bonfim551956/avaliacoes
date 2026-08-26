@@ -804,6 +804,21 @@
       </div>
       <div id="lista-consultores"></div>
     </div>
+    
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="ti ti-alert-triangle"></i> Nomes ambíguos
+          <span style="font-size:12px; color:var(--text-muted); font-weight:400; margin-left:8px;">
+            (sempre exigem aprovação manual)
+          </span>
+        </h2>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalAmbiguo()">
+          <i class="ti ti-plus"></i> Adicionar
+        </button>
+      </div>
+      <div id="lista-ambiguos"></div>
+    </div>
   </div>
 
   <!-- TAB: GOOGLE -->
@@ -1088,7 +1103,7 @@ function trocarTab(nome) {
   if (nome === 'historico') carregarHistorico();
   if (nome === 'aprovacoes') carregarAprovacoes();
   if (nome === 'tratativas') carregarTratativas();
-  if (nome === 'consultores') carregarConsultores();
+  if (nome === 'consultores') { carregarConsultores(); carregarAmbiguos(); }
   if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
 }
 
@@ -1103,7 +1118,7 @@ function forcarRecarregar() {
     else if (nome === 'historico') carregarHistorico();
     else if (nome === 'aprovacoes') carregarAprovacoes();
     else if (nome === 'tratativas') carregarTratativas();
-    else if (nome === 'consultores') carregarConsultores();
+    else if (nome === 'consultores') { carregarConsultores(); carregarAmbiguos(); }
     else if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
   }
   atualizarBadges();
@@ -1816,7 +1831,15 @@ async function carregarHistorico() {
               <span class="sep">•</span>
               ${estrelas(d.estrelas)}
               ${d.tem_foto ? `<span class="sep">•</span><span style="color:var(--orange); font-size:12px; font-weight:600;"><i class="ti ti-camera" style="font-size:13px; vertical-align:-2px;"></i> Com foto (peso 2)</span>` : ''}
-              ${d.consultor_detectado ? `<span class="sep">•</span><span class="review-tag approved" style="text-transform:none; letter-spacing:0;"><i class="ti ti-user"></i> ${escapeHtml(d.consultor_detectado)}</span>` : ''}
+              ${d.consultor_detectado 
+                ? `<span class="sep">•</span><span class="review-tag approved" style="text-transform:none; letter-spacing:0;"><i class="ti ti-user"></i> ${escapeHtml(d.consultor_detectado)}</span>`
+                : `<span class="sep">•</span><span class="muted" style="font-size:12px; font-style:italic;">sem consultor</span>`
+              }
+              <button class="btn btn-ghost btn-sm" onclick="editarConsultorAvaliacao('${d.id}', '${d.loja}', ${JSON.stringify(d.consultor_detectado || '')})" 
+                title="Editar consultor mencionado"
+                style="padding:2px 8px; font-size:11px; margin-left:4px;">
+                <i class="ti ti-pencil" style="font-size:12px;"></i> Editar
+              </button>
             </div>
             ${statusLabel(d)}
           </div>
@@ -1833,6 +1856,60 @@ async function carregarHistorico() {
         </div>
       `;
     }).join('');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+// =====================================================
+// EDITAR CONSULTOR DE UMA AVALIAÇÃO
+// =====================================================
+async function editarConsultorAvaliacao(avaliacaoId, loja, consultorAtual) {
+  try {
+    // Busca consultores ativos da loja
+    const consultores = await sb(`consultores?select=nome&loja=eq.${loja}&ativo=eq.true&order=nome.asc`);
+    
+    const opcoes = ['__NENHUM__', ...consultores.map(c => c.nome)];
+    
+    // Monta prompt
+    const lista = opcoes.map((opt, i) => {
+      const label = opt === '__NENHUM__' ? 'Nenhum (limpar)' : opt;
+      const marcador = opt === consultorAtual || (opt === '__NENHUM__' && !consultorAtual) ? ' ← atual' : '';
+      return `${i + 1}. ${label}${marcador}`;
+    }).join('\n');
+    
+    const escolha = prompt(
+      `Editar consultor mencionado:\n\n${lista}\n\nDigite o número:`,
+      opcoes.findIndex(o => o === consultorAtual) + 1 || '1'
+    );
+    
+    if (!escolha) return;
+    
+    const idx = parseInt(escolha) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= opcoes.length) {
+      toast('Opção inválida', 'error');
+      return;
+    }
+    
+    const novoConsultor = opcoes[idx] === '__NENHUM__' ? null : opcoes[idx];
+    
+    // Confirma
+    const labelNovo = novoConsultor || 'Nenhum consultor';
+    if (!confirm(`Alterar consultor para: ${labelNovo}?`)) return;
+    
+    // Atualiza no banco
+    await sb(`avaliacoes?id=eq.${avaliacaoId}`, {
+      method: 'PATCH',
+      body: { 
+        consultor_detectado: novoConsultor,
+        status_deteccao: novoConsultor ? 'confirmada_manual' : 'sem_mencao'
+      }
+    });
+    
+    CACHE.invalidar('sb:avaliacoes');
+    CACHE.invalidar('count:avaliacoes');
+    toast(`Consultor alterado para: ${labelNovo}`, 'success');
+    carregarHistorico();
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
@@ -1884,6 +1961,7 @@ function filtrarConsLoja(l) {
     el.classList.toggle('active', el.dataset.consLoja === l);
   });
   carregarConsultores();
+  carregarAmbiguos();
 }
 
 async function carregarConsultores() {
@@ -1904,32 +1982,60 @@ async function carregarConsultores() {
             <tr>
               <th>Nome</th>
               <th>Loja</th>
+              <th style="width:80px;">Gênero</th>
               <th>Variantes</th>
               <th>Situação</th>
-              <th style="width:120px;"></th>
+              <th style="width:150px;"></th>
             </tr>
           </thead>
           <tbody>
-            ${dados.map(c => `
+            ${dados.map(c => {
+              const gen = c.genero || 'F';
+              const genLabel = gen === 'M' ? '♂ Masc.' : '♀ Fem.';
+              const genColor = gen === 'M' ? '#3B82F6' : '#EC4899';
+              return `
               <tr>
                 <td><strong>${escapeHtml(c.nome)}</strong></td>
                 <td class="muted">${LOJAS[c.loja] || c.loja}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" onclick="alterarGenero(${c.id}, '${gen}')" 
+                    style="color:${genColor}; font-weight:600; font-size:12px;">
+                    ${genLabel}
+                  </button>
+                </td>
                 <td class="muted" style="font-size:13px;">${(c.variantes || []).join(', ') || '—'}</td>
                 <td>${c.ativo ? '<span class="review-tag approved">Ativo</span>' : '<span class="review-tag">Inativo</span>'}</td>
                 <td>
-                  <button class="btn btn-ghost btn-sm" onclick="editarConsultor(${c.id})">
+                  <button class="btn btn-ghost btn-sm" onclick="editarConsultor(${c.id})" title="Editar variantes">
                     <i class="ti ti-edit"></i>
                   </button>
-                  <button class="btn btn-ghost btn-sm" onclick="toggleConsultor(${c.id}, ${!c.ativo})">
+                  <button class="btn btn-ghost btn-sm" onclick="toggleConsultor(${c.id}, ${!c.ativo})" title="${c.ativo ? 'Inativar' : 'Ativar'}">
                     <i class="ti ti-${c.ativo ? 'user-off' : 'user-check'}"></i>
                   </button>
                 </td>
               </tr>
-            `).join('')}
+            `;}).join('')}
           </tbody>
         </table>
       </div>
     `;
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function alterarGenero(id, generoAtual) {
+  const novo = generoAtual === 'M' ? 'F' : 'M';
+  const label = novo === 'M' ? 'Masculino ♂' : 'Feminino ♀';
+  if (!confirm(`Alterar gênero para ${label}?\n\nIsso vai fazer a IA usar o artigo correto (${novo === 'M' ? 'o' : 'a'}) nas próximas respostas geradas.`)) return;
+  try {
+    await sb(`consultores?id=eq.${id}`, {
+      method: 'PATCH',
+      body: { genero: novo, atualizado_em: new Date().toISOString() }
+    });
+    CACHE.invalidar();
+    toast(`Gênero alterado para ${label}`, 'success');
+    carregarConsultores();
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
@@ -1971,16 +2077,105 @@ async function abrirModalConsultor() {
   if (!nome) return;
   const loja = prompt('Loja (sao_vicente, campinas, piracicaba, sorocaba):');
   if (!loja || !LOJAS[loja]) { toast('Loja inválida', 'error'); return; }
+  const gen = prompt('Gênero (M = masculino, F = feminino):', 'F');
+  if (!gen) return;
+  const genero = gen.toUpperCase() === 'M' ? 'M' : 'F';
   const vars = prompt('Variantes (separadas por vírgula, opcional):') || '';
   const arr = vars.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   if (arr.length === 0) arr.push(nome.toLowerCase());
   try {
     await sb('consultores', {
       method: 'POST',
-      body: { nome, loja, variantes: arr, ativo: true }
+      body: { nome, loja, genero, variantes: arr, ativo: true }
     });
+    CACHE.invalidar();
     toast('Consultor criado', 'success');
     carregarConsultores();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+// =====================================================
+// NOMES AMBÍGUOS
+// =====================================================
+async function carregarAmbiguos() {
+  try {
+    let q = 'nomes_ambiguos?select=*&order=loja.asc,nome.asc';
+    if (filtroConsLoja !== 'todas') q += `&loja=eq.${filtroConsLoja}`;
+    const dados = await sb(q);
+    
+    const el = document.getElementById('lista-ambiguos');
+    if (!el) return;
+    
+    if (!dados.length) {
+      el.innerHTML = '<div class="empty" style="padding:30px 20px;"><i class="ti ti-check" style="color:var(--teal);"></i><h3>Nenhum nome ambíguo</h3><p style="font-size:13px;">Todos os nomes de consultores estão únicos por loja.</p></div>';
+      return;
+    }
+    
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Loja</th>
+              <th>Motivo</th>
+              <th style="width:80px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${dados.map(a => `
+              <tr>
+                <td><strong style="color:var(--orange);"><i class="ti ti-alert-triangle" style="font-size:14px;"></i> ${escapeHtml(a.nome)}</strong></td>
+                <td class="muted">${LOJAS[a.loja] || a.loja}</td>
+                <td class="muted" style="font-size:13px;">${escapeHtml(a.motivo || '—')}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" onclick="removerAmbiguo(${a.id})" title="Remover">
+                    <i class="ti ti-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    toast('Erro ambíguos: ' + e.message, 'error');
+  }
+}
+
+async function abrirModalAmbiguo() {
+  const nome = prompt('Nome ambíguo (será convertido pra minúsculas):');
+  if (!nome) return;
+  const loja = prompt('Loja (sao_vicente, campinas, piracicaba, sorocaba):');
+  if (!loja || !LOJAS[loja]) { toast('Loja inválida', 'error'); return; }
+  const motivo = prompt('Motivo (opcional, ex: "Gabriel consultor + Gabriel optometrista"):') || null;
+  try {
+    await sb('nomes_ambiguos', {
+      method: 'POST',
+      body: { nome: nome.toLowerCase().trim(), loja, motivo }
+    });
+    CACHE.invalidar();
+    toast('Nome ambíguo cadastrado', 'success');
+    carregarAmbiguos();
+  } catch (e) {
+    if (e.message.includes('duplicate')) {
+      toast('Esse nome já está cadastrado para essa loja', 'error');
+    } else {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+}
+
+async function removerAmbiguo(id) {
+  if (!confirm('Remover esse nome da lista de ambíguos?\nA partir de agora ele voltará a ser detectado automaticamente.')) return;
+  try {
+    await sb(`nomes_ambiguos?id=eq.${id}`, { method: 'DELETE' });
+    CACHE.invalidar();
+    toast('Removido', 'success');
+    carregarAmbiguos();
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
