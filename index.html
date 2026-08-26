@@ -262,6 +262,60 @@
     border-radius: var(--radius);
     margin-bottom: 16px;
   }
+  .filters-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .filters-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .period-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-left: 8px;
+  }
+  .custom-box {
+    display: none;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .custom-box.show { display: flex; }
+  .input-date {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .btn-primary {
+    padding: 6px 14px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-primary:hover { background: var(--teal-dark); }
   .filter-label {
     font-size: 13px;
     color: var(--text-muted);
@@ -638,6 +692,26 @@
 
   <!-- TAB: DASHBOARD -->
   <div id="tab-dashboard" class="tab-content active">
+    <div class="filters-card">
+      <div class="filters-row">
+        <span class="filter-label">Período</span>
+        <button class="filter-pill active" data-dash-periodo="mes" onclick="filtrarDashPeriodo('mes')">Este mês</button>
+        <button class="filter-pill" data-dash-periodo="hoje" onclick="filtrarDashPeriodo('hoje')">Hoje</button>
+        <button class="filter-pill" data-dash-periodo="ontem" onclick="filtrarDashPeriodo('ontem')">Ontem</button>
+        <button class="filter-pill" data-dash-periodo="semana" onclick="filtrarDashPeriodo('semana')">Semana</button>
+        <button class="filter-pill" data-dash-periodo="mes_passado" onclick="filtrarDashPeriodo('mes_passado')">Mês passado</button>
+        <button class="filter-pill" data-dash-periodo="tudo" onclick="filtrarDashPeriodo('tudo')">Tudo</button>
+        <button class="filter-pill" data-dash-periodo="custom" onclick="abrirDashCustom()">Personalizado</button>
+        <span class="period-info" id="dash-periodo-info"></span>
+      </div>
+      <div class="custom-box" id="dash-custom-box">
+        <span class="filter-label">De:</span>
+        <input type="date" class="input-date" id="dash-data-ini">
+        <span class="filter-label">Até:</span>
+        <input type="date" class="input-date" id="dash-data-fim">
+        <button class="btn-primary" onclick="aplicarDashCustom()"><i class="ti ti-check"></i> Aplicar</button>
+      </div>
+    </div>
     <div class="kpi-grid" id="kpi-dashboard">
       <div class="loading"><span class="spinner"></span> Carregando painel...</div>
     </div>
@@ -696,21 +770,41 @@
 
   <!-- TAB: HISTÓRICO -->
   <div id="tab-historico" class="tab-content">
-    <div class="filters">
-      <span class="filter-label">Loja</span>
-      <button class="filter-pill active" data-hist-loja="todas" onclick="filtrarHistLoja('todas')">Todas</button>
-      <button class="filter-pill" data-hist-loja="sao_vicente" onclick="filtrarHistLoja('sao_vicente')">São Vicente</button>
-      <button class="filter-pill" data-hist-loja="campinas" onclick="filtrarHistLoja('campinas')">Campinas</button>
-      <button class="filter-pill" data-hist-loja="piracicaba" onclick="filtrarHistLoja('piracicaba')">Piracicaba</button>
-      <button class="filter-pill" data-hist-loja="sorocaba" onclick="filtrarHistLoja('sorocaba')">Sorocaba</button>
-      <span class="filter-label" style="margin-left:12px;">Estrelas</span>
-      <button class="filter-pill active" data-hist-estrelas="todas" onclick="filtrarHistEstrelas('todas')">Todas</button>
-      <button class="filter-pill" data-hist-estrelas="5" onclick="filtrarHistEstrelas('5')">5 estrelas</button>
-      <button class="filter-pill" data-hist-estrelas="menos5" onclick="filtrarHistEstrelas('menos5')">Menos de 5</button>
-      <span class="filter-label" style="margin-left:12px;">Foto</span>
-      <button class="filter-pill active" data-hist-foto="todas" onclick="filtrarHistFoto('todas')">Todas</button>
-      <button class="filter-pill" data-hist-foto="com" onclick="filtrarHistFoto('com')">Com foto</button>
-      <button class="filter-pill" data-hist-foto="sem" onclick="filtrarHistFoto('sem')">Sem foto</button>
+    <div class="filters-card">
+      <div class="filters-row">
+        <span class="filter-label">Período</span>
+        <button class="filter-pill active" data-hist-periodo="mes" onclick="filtrarHistPeriodo('mes')">Este mês</button>
+        <button class="filter-pill" data-hist-periodo="hoje" onclick="filtrarHistPeriodo('hoje')">Hoje</button>
+        <button class="filter-pill" data-hist-periodo="ontem" onclick="filtrarHistPeriodo('ontem')">Ontem</button>
+        <button class="filter-pill" data-hist-periodo="semana" onclick="filtrarHistPeriodo('semana')">Semana</button>
+        <button class="filter-pill" data-hist-periodo="mes_passado" onclick="filtrarHistPeriodo('mes_passado')">Mês passado</button>
+        <button class="filter-pill" data-hist-periodo="tudo" onclick="filtrarHistPeriodo('tudo')">Tudo</button>
+        <button class="filter-pill" data-hist-periodo="custom" onclick="abrirHistCustom()">Personalizado</button>
+        <span class="period-info" id="hist-periodo-info"></span>
+      </div>
+      <div class="filters-row">
+        <span class="filter-label">Loja</span>
+        <button class="filter-pill active" data-hist-loja="todas" onclick="filtrarHistLoja('todas')">Todas</button>
+        <button class="filter-pill" data-hist-loja="sao_vicente" onclick="filtrarHistLoja('sao_vicente')">São Vicente</button>
+        <button class="filter-pill" data-hist-loja="campinas" onclick="filtrarHistLoja('campinas')">Campinas</button>
+        <button class="filter-pill" data-hist-loja="piracicaba" onclick="filtrarHistLoja('piracicaba')">Piracicaba</button>
+        <button class="filter-pill" data-hist-loja="sorocaba" onclick="filtrarHistLoja('sorocaba')">Sorocaba</button>
+        <span class="filter-label" style="margin-left:12px;">Estrelas</span>
+        <button class="filter-pill active" data-hist-estrelas="todas" onclick="filtrarHistEstrelas('todas')">Todas</button>
+        <button class="filter-pill" data-hist-estrelas="5" onclick="filtrarHistEstrelas('5')">5 estrelas</button>
+        <button class="filter-pill" data-hist-estrelas="menos5" onclick="filtrarHistEstrelas('menos5')">Menos de 5</button>
+        <span class="filter-label" style="margin-left:12px;">Foto</span>
+        <button class="filter-pill active" data-hist-foto="todas" onclick="filtrarHistFoto('todas')">Todas</button>
+        <button class="filter-pill" data-hist-foto="com" onclick="filtrarHistFoto('com')">Com foto</button>
+        <button class="filter-pill" data-hist-foto="sem" onclick="filtrarHistFoto('sem')">Sem foto</button>
+      </div>
+      <div class="custom-box" id="hist-custom-box">
+        <span class="filter-label">De:</span>
+        <input type="date" class="input-date" id="hist-data-ini">
+        <span class="filter-label">Até:</span>
+        <input type="date" class="input-date" id="hist-data-fim">
+        <button class="btn-primary" onclick="aplicarHistCustom()"><i class="ti ti-check"></i> Aplicar</button>
+      </div>
     </div>
     <div class="card">
       <div class="card-header">
@@ -1130,15 +1224,24 @@ function forcarRecarregar() {
 // =====================================================
 async function carregarDashboard() {
   try {
+    const periodo = calcularPeriodoGenerico(filtroDashPeriodo, filtroDashCustom);
+    const infoEl = document.getElementById('dash-periodo-info');
+    if (infoEl) infoEl.textContent = periodo.label;
+    
+    // Monta filtro de data pra reusar
+    let filtroData = '';
+    if (periodo.ini) filtroData += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
+    if (periodo.fim) filtroData += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
+    
     // Usa HEAD count pra ser MUITO mais rápido (não traz dados, só quantidade)
     const [totalN, positivasN, comFotoN, pendentesN, tratativasN, recentes, pontosData] = await Promise.all([
-      sbCount('avaliacoes?select=id'),
-      sbCount('avaliacoes?select=id&estrelas=eq.5'),
-      sbCount('avaliacoes?select=id&estrelas=eq.5&tem_foto=eq.true'),
-      sbCount('avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao'),
-      sbCount('avaliacoes?select=id&estrelas=lt.5&tratativa_status=eq.aguardando'),
-      sb('avaliacoes?select=id,cliente_nome,loja,data_avaliacao,estrelas,texto,consultor_detectado,tem_foto&order=data_avaliacao.desc&limit=10'),
-      sb('avaliacoes?select=pontuacao&estrelas=eq.5&limit=5000')
+      sbCount(`avaliacoes?select=id${filtroData}`),
+      sbCount(`avaliacoes?select=id&estrelas=eq.5${filtroData}`),
+      sbCount(`avaliacoes?select=id&estrelas=eq.5&tem_foto=eq.true${filtroData}`),
+      sbCount(`avaliacoes?select=id&status_deteccao=eq.pendente_aprovacao${filtroData}`),
+      sbCount(`avaliacoes?select=id&estrelas=lt.5&tratativa_status=eq.aguardando${filtroData}`),
+      sb(`avaliacoes?select=id,cliente_nome,loja,data_avaliacao,estrelas,texto,consultor_detectado,tem_foto&order=data_avaliacao.desc&limit=10${filtroData}`),
+      sb(`avaliacoes?select=pontuacao&estrelas=eq.5&limit=5000${filtroData}`)
     ]);
     
     const pct5 = totalN > 0 ? ((positivasN / totalN) * 100).toFixed(1) : '0.0';
@@ -1149,6 +1252,7 @@ async function carregarDashboard() {
       <div class="kpi">
         <p class="kpi-label">Total de avaliações</p>
         <p class="kpi-value">${totalN}</p>
+        <p class="kpi-hint">${periodo.label}</p>
       </div>
       <div class="kpi">
         <p class="kpi-label">5 estrelas</p>
@@ -1175,7 +1279,7 @@ async function carregarDashboard() {
       </div>
     `;
     
-    document.getElementById('lista-recentes').innerHTML = recentes.map(r => `
+    document.getElementById('lista-recentes').innerHTML = (recentes && recentes.length) ? recentes.map(r => `
       <div class="review-card ${r.estrelas < 5 ? 'negative' : ''}">
         <div class="review-header">
           <div class="review-meta">
@@ -1192,7 +1296,7 @@ async function carregarDashboard() {
         </div>
         <div class="review-text">${escapeHtml(limparTraducao(r.texto) || '(sem texto)')}</div>
       </div>
-    `).join('') || '<div class="empty"><i class="ti ti-inbox"></i><h3>Nenhuma avaliação</h3><p>Aguarde a próxima sincronização.</p></div>';
+    `).join('') : '<div class="empty"><i class="ti ti-inbox"></i><h3>Nenhuma avaliação no período</h3><p>Ajuste o filtro ou aguarde a próxima sincronização.</p></div>';
     
     atualizarBadges();
   } catch (e) {
@@ -1662,6 +1766,97 @@ function calcularPeriodo() {
   return { ini, fim, label };
 }
 
+// Cálculo genérico usado por Dashboard e Histórico
+function calcularPeriodoGenerico(periodo, custom) {
+  const hoje = new Date();
+  hoje.setHours(23, 59, 59, 999);
+  let ini, fim = hoje, label = '';
+  
+  switch (periodo) {
+    case 'hoje': {
+      ini = new Date(hoje); ini.setHours(0,0,0,0);
+      label = ini.toLocaleDateString('pt-BR');
+      break;
+    }
+    case 'ontem': {
+      ini = new Date(hoje); ini.setDate(ini.getDate() - 1); ini.setHours(0,0,0,0);
+      fim = new Date(hoje); fim.setDate(fim.getDate() - 1); fim.setHours(23,59,59,999);
+      label = ini.toLocaleDateString('pt-BR');
+      break;
+    }
+    case 'semana': {
+      ini = new Date(hoje);
+      ini.setDate(ini.getDate() - ini.getDay());
+      ini.setHours(0,0,0,0);
+      label = `${ini.toLocaleDateString('pt-BR')} até ${hoje.toLocaleDateString('pt-BR')}`;
+      break;
+    }
+    case 'mes': {
+      ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      ini.setHours(0,0,0,0);
+      label = `${ini.toLocaleDateString('pt-BR')} até ${hoje.toLocaleDateString('pt-BR')}`;
+      break;
+    }
+    case 'mes_passado': {
+      ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      ini.setHours(0,0,0,0);
+      fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59, 999);
+      label = `${ini.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}`;
+      break;
+    }
+    case 'custom': {
+      if (custom && custom.ini && custom.fim) {
+        ini = new Date(custom.ini + 'T00:00:00');
+        fim = new Date(custom.fim + 'T23:59:59');
+        label = `${ini.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}`;
+      }
+      break;
+    }
+    default:
+      ini = null; fim = null;
+      label = 'Todo o período';
+  }
+  return { ini, fim, label };
+}
+
+// =====================================================
+// FILTROS DO DASHBOARD
+// =====================================================
+let filtroDashPeriodo = 'mes';
+let filtroDashCustom = { ini: null, fim: null };
+
+function filtrarDashPeriodo(p) {
+  filtroDashPeriodo = p;
+  document.querySelectorAll('[data-dash-periodo]').forEach(el => {
+    el.classList.toggle('active', el.dataset.dashPeriodo === p);
+  });
+  if (p !== 'custom') {
+    document.getElementById('dash-custom-box').classList.remove('show');
+    carregarDashboard();
+  }
+}
+
+function abrirDashCustom() {
+  const box = document.getElementById('dash-custom-box');
+  box.classList.add('show');
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('dash-data-ini').value = primeiroDia.toISOString().split('T')[0];
+  document.getElementById('dash-data-fim').value = hoje.toISOString().split('T')[0];
+}
+
+function aplicarDashCustom() {
+  const ini = document.getElementById('dash-data-ini').value;
+  const fim = document.getElementById('dash-data-fim').value;
+  if (!ini || !fim) { toast('Escolha as duas datas', 'error'); return; }
+  filtroDashPeriodo = 'custom';
+  filtroDashCustom = { ini, fim };
+  document.querySelectorAll('[data-dash-periodo]').forEach(el => {
+    el.classList.toggle('active', el.dataset.dashPeriodo === 'custom');
+  });
+  carregarDashboard();
+}
+
 async function carregarRanking() {
   try {
     const periodo = calcularPeriodo();
@@ -1758,6 +1953,40 @@ function exportarRankingCSV() {
 let filtroHistLoja = 'todas';
 let filtroHistEstrelas = 'todas';
 let filtroHistFoto = 'todas';
+let filtroHistPeriodo = 'mes';
+let filtroHistCustom = { ini: null, fim: null };
+
+function filtrarHistPeriodo(p) {
+  filtroHistPeriodo = p;
+  document.querySelectorAll('[data-hist-periodo]').forEach(el => {
+    el.classList.toggle('active', el.dataset.histPeriodo === p);
+  });
+  if (p !== 'custom') {
+    document.getElementById('hist-custom-box').classList.remove('show');
+    carregarHistorico();
+  }
+}
+
+function abrirHistCustom() {
+  const box = document.getElementById('hist-custom-box');
+  box.classList.add('show');
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('hist-data-ini').value = primeiroDia.toISOString().split('T')[0];
+  document.getElementById('hist-data-fim').value = hoje.toISOString().split('T')[0];
+}
+
+function aplicarHistCustom() {
+  const ini = document.getElementById('hist-data-ini').value;
+  const fim = document.getElementById('hist-data-fim').value;
+  if (!ini || !fim) { toast('Escolha as duas datas', 'error'); return; }
+  filtroHistPeriodo = 'custom';
+  filtroHistCustom = { ini, fim };
+  document.querySelectorAll('[data-hist-periodo]').forEach(el => {
+    el.classList.toggle('active', el.dataset.histPeriodo === 'custom');
+  });
+  carregarHistorico();
+}
 
 function filtrarHistLoja(l) {
   filtroHistLoja = l;
@@ -1785,17 +2014,23 @@ function filtrarHistFoto(f) {
 
 async function carregarHistorico() {
   try {
+    const periodo = calcularPeriodoGenerico(filtroHistPeriodo, filtroHistCustom);
+    const infoEl = document.getElementById('hist-periodo-info');
+    if (infoEl) infoEl.textContent = periodo.label;
+    
     let q = 'avaliacoes?select=*&order=data_avaliacao.desc&limit=200';
     if (filtroHistLoja !== 'todas') q += `&loja=eq.${filtroHistLoja}`;
     if (filtroHistEstrelas === '5') q += `&estrelas=eq.5`;
     else if (filtroHistEstrelas === 'menos5') q += `&estrelas=lt.5`;
     if (filtroHistFoto === 'com') q += `&tem_foto=eq.true`;
     else if (filtroHistFoto === 'sem') q += `&tem_foto=eq.false`;
+    if (periodo.ini) q += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
+    if (periodo.fim) q += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
     
     const dados = await sb(q);
     
     if (!dados.length) {
-      document.getElementById('lista-historico').innerHTML = '<div class="empty"><i class="ti ti-inbox"></i><h3>Sem avaliações</h3></div>';
+      document.getElementById('lista-historico').innerHTML = '<div class="empty"><i class="ti ti-inbox"></i><h3>Sem avaliações</h3><p>Ajuste os filtros ou selecione um período diferente.</p></div>';
       return;
     }
     
@@ -1954,12 +2189,15 @@ function statusLabel(d) {
 function exportarHistoricoCSV() {
   toast('Exportando...', 'info');
   (async () => {
+    const periodo = calcularPeriodoGenerico(filtroHistPeriodo, filtroHistCustom);
     let q = 'avaliacoes?select=*&order=data_avaliacao.desc&limit=1000';
     if (filtroHistLoja !== 'todas') q += `&loja=eq.${filtroHistLoja}`;
     if (filtroHistEstrelas === '5') q += `&estrelas=eq.5`;
     else if (filtroHistEstrelas === 'menos5') q += `&estrelas=lt.5`;
     if (filtroHistFoto === 'com') q += `&tem_foto=eq.true`;
     else if (filtroHistFoto === 'sem') q += `&tem_foto=eq.false`;
+    if (periodo.ini) q += `&data_avaliacao=gte.${periodo.ini.toISOString()}`;
+    if (periodo.fim) q += `&data_avaliacao=lte.${periodo.fim.toISOString()}`;
     const dados = await sb(q);
     let csv = 'Data,Cliente,Loja,Estrelas,Consultor,Com foto,Pontos,Situação,Mensagem do cliente\n';
     dados.forEach(d => {
