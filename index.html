@@ -1838,9 +1838,10 @@ async function carregarHistorico() {
               <button class="btn btn-ghost btn-sm btn-editar-consultor" 
                 data-avaliacao-id="${d.id}"
                 data-loja="${d.loja}"
-                data-consultor-atual="${escapeHtml(d.consultor_detectado || '')}"
+                data-consultor-atual="${d.consultor_detectado ? escapeHtml(d.consultor_detectado) : ''}"
                 title="Editar consultor mencionado"
-                style="padding:2px 8px; font-size:11px; margin-left:4px;">
+                type="button"
+                style="padding:2px 8px; font-size:11px; margin-left:4px; cursor:pointer;">
                 <i class="ti ti-pencil" style="font-size:12px;"></i> Editar
               </button>
             </div>
@@ -1859,21 +1860,29 @@ async function carregarHistorico() {
         </div>
       `;
     }).join('');
-    
-    // Anexar handlers dos botões editar (evita erro de escape em onclick)
-    document.querySelectorAll('.btn-editar-consultor').forEach(btn => {
-      btn.addEventListener('click', () => {
-        editarConsultorAvaliacao(
-          btn.dataset.avaliacaoId,
-          btn.dataset.loja,
-          btn.dataset.consultorAtual || ''
-        );
-      });
-    });
   } catch (e) {
+    console.error('Erro histórico:', e);
     toast('Erro: ' + e.message, 'error');
   }
 }
+
+// Event delegation global — funciona pra elementos renderizados dinamicamente
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.btn-editar-consultor');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  console.log('[Editar] clicado', {
+    id: btn.dataset.avaliacaoId,
+    loja: btn.dataset.loja,
+    atual: btn.dataset.consultorAtual
+  });
+  editarConsultorAvaliacao(
+    btn.dataset.avaliacaoId,
+    btn.dataset.loja,
+    btn.dataset.consultorAtual || ''
+  );
+});
 
 // =====================================================
 // EDITAR CONSULTOR DE UMA AVALIAÇÃO
