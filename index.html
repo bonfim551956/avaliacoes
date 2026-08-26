@@ -1835,7 +1835,10 @@ async function carregarHistorico() {
                 ? `<span class="sep">•</span><span class="review-tag approved" style="text-transform:none; letter-spacing:0;"><i class="ti ti-user"></i> ${escapeHtml(d.consultor_detectado)}</span>`
                 : `<span class="sep">•</span><span class="muted" style="font-size:12px; font-style:italic;">sem consultor</span>`
               }
-              <button class="btn btn-ghost btn-sm" onclick="editarConsultorAvaliacao('${d.id}', '${d.loja}', ${JSON.stringify(d.consultor_detectado || '')})" 
+              <button class="btn btn-ghost btn-sm btn-editar-consultor" 
+                data-avaliacao-id="${d.id}"
+                data-loja="${d.loja}"
+                data-consultor-atual="${escapeHtml(d.consultor_detectado || '')}"
                 title="Editar consultor mencionado"
                 style="padding:2px 8px; font-size:11px; margin-left:4px;">
                 <i class="ti ti-pencil" style="font-size:12px;"></i> Editar
@@ -1856,6 +1859,17 @@ async function carregarHistorico() {
         </div>
       `;
     }).join('');
+    
+    // Anexar handlers dos botões editar (evita erro de escape em onclick)
+    document.querySelectorAll('.btn-editar-consultor').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editarConsultorAvaliacao(
+          btn.dataset.avaliacaoId,
+          btn.dataset.loja,
+          btn.dataset.consultorAtual || ''
+        );
+      });
+    });
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
