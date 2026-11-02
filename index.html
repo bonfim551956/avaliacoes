@@ -1130,7 +1130,17 @@ async function callFn(nome, body = {}) {
     },
     body: JSON.stringify(body)
   });
-  return await res.json();
+  let data = null;
+  try { data = await res.json(); } catch { data = null; }
+  // Edge function retornou {sucesso:false,...}? Lança erro pro catch
+  if (data && data.sucesso === false) {
+    const msg = data.erro || data.mensagem || `Edge function ${nome} falhou`;
+    throw new Error(msg);
+  }
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} em ${nome}`);
+  }
+  return data || {};
 }
 
 function toast(msg, tipo = 'info') {
@@ -1575,13 +1585,13 @@ async function sugerirRespostaIA(id, loja, estrelas, texto, cliente) {
   btn.disabled = false;
 }
 
-async function salvarTratativa(id, status = 'em_analise') {
+async function salvarTratativa(id, status = 'em_andamento') {
   const resp = document.getElementById(`trat-resp-${id}`).value.trim();
   const obs = document.getElementById(`trat-obs-${id}`).value.trim();
   try {
-    await sb(`avaliacoes?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { tratativa_resposta: resp, tratativa_observacao: obs, tratativa_status: status }
+    await callFn('atualizar-tratativa', {
+      avaliacao_id: id,
+      status, resposta: resp, observacao: obs
     });
     CACHE.invalidar('sb:avaliacoes');
     CACHE.invalidar('count:avaliacoes');
@@ -1596,23 +1606,22 @@ async function aprovarEnviarTratativa(id) {
   const obs = document.getElementById(`trat-obs-${id}`).value.trim();
   if (!resp) { toast('Escreva uma resposta antes de enviar', 'error'); return; }
   if (!confirm('Enviar essa resposta ao Google? Não é possível desfazer.')) return;
-  
+
   try {
-    await sb(`avaliacoes?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { tratativa_resposta: resp, tratativa_observacao: obs, tratativa_status: 'aprovada' }
+    // Salva rascunho antes de enviar
+    await callFn('atualizar-tratativa', {
+      avaliacao_id: id,
+      status: 'em_andamento', resposta: resp, observacao: obs
     });
-    
-    const r = await callFn('enviar-respostas-pendentes', { avaliacao_id: id, texto_resposta: resp });
-    
-    await sb(`avaliacoes?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { 
-        tratativa_status: 'enviada',
-        tratativa_data: new Date().toISOString()
-      }
+
+    await callFn('enviar-respostas-pendentes', { avaliacao_id: id, texto_resposta: resp });
+
+    // Marca como enviada
+    await callFn('atualizar-tratativa', {
+      avaliacao_id: id,
+      status: 'enviada'
     });
-    
+
     CACHE.invalidar('sb:avaliacoes');
     CACHE.invalidar('count:avaliacoes');
     toast('Resposta enviada ao Google', 'success');
@@ -1627,9 +1636,9 @@ async function ignorarTratativa(id) {
   if (!confirm('Marcar como ignorada? Você pode reabrir depois.')) return;
   const obs = document.getElementById(`trat-obs-${id}`).value.trim();
   try {
-    await sb(`avaliacoes?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { tratativa_status: 'ignorada', tratativa_observacao: obs }
+    await callFn('atualizar-tratativa', {
+      avaliacao_id: id,
+      status: 'ignorada', observacao: obs
     });
     CACHE.invalidar('sb:avaliacoes');
     CACHE.invalidar('count:avaliacoes');
@@ -1644,9 +1653,9 @@ async function ignorarTratativa(id) {
 async function reabrirTratativa(id) {
   if (!confirm('Reabrir para nova tratativa?')) return;
   try {
-    await sb(`avaliacoes?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { tratativa_status: 'aguardando' }
+    await callFn('atualizar-tratativa', {
+      avaliacao_id: id,
+      status: 'aguardando'
     });
     CACHE.invalidar('sb:avaliacoes');
     CACHE.invalidar('count:avaliacoes');
@@ -2150,18 +2159,15 @@ async function editarConsultorAvaliacao(avaliacaoId, loja, consultorAtual) {
     }
     
     const novoConsultor = opcoes[idx] === '__NENHUM__' ? null : opcoes[idx];
-    
+
     // Confirma
     const labelNovo = novoConsultor || 'Nenhum consultor';
     if (!confirm(`Alterar consultor para: ${labelNovo}?`)) return;
-    
-    // Atualiza no banco
-    await sb(`avaliacoes?id=eq.${avaliacaoId}`, {
-      method: 'PATCH',
-      body: { 
-        consultor_detectado: novoConsultor,
-        status_deteccao: novoConsultor ? 'confirmada_manual' : 'sem_mencao'
-      }
+
+    // Atualiza via edge function (com verify_jwt)
+    await callFn('atualizar-consultor-avaliacao', {
+      avaliacao_id: avaliacaoId,
+      novo_consultor: novoConsultor
     });
     
     CACHE.invalidar('sb:avaliacoes');
@@ -2290,10 +2296,7 @@ async function alterarGenero(id, generoAtual) {
   const label = novo === 'M' ? 'Masculino ♂' : 'Feminino ♀';
   if (!confirm(`Alterar gênero para ${label}?\n\nIsso vai fazer a IA usar o artigo correto (${novo === 'M' ? 'o' : 'a'}) nas próximas respostas geradas.`)) return;
   try {
-    await sb(`consultores?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { genero: novo, atualizado_em: new Date().toISOString() }
-    });
+    await callFn('gerenciar-consultor', { acao: 'update', id, genero: novo });
     CACHE.invalidar();
     toast(`Gênero alterado para ${label}`, 'success');
     carregarConsultores();
@@ -2304,10 +2307,7 @@ async function alterarGenero(id, generoAtual) {
 
 async function toggleConsultor(id, ativo) {
   try {
-    await sb(`consultores?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { ativo, atualizado_em: new Date().toISOString() }
-    });
+    await callFn('gerenciar-consultor', { acao: 'update', id, ativo });
     toast(ativo ? 'Ativado' : 'Inativado', 'success');
     carregarConsultores();
   } catch (e) {
@@ -2322,10 +2322,7 @@ async function editarConsultor(id) {
   if (novasVars === null) return;
   const arr = novasVars.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   try {
-    await sb(`consultores?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { variantes: arr, atualizado_em: new Date().toISOString() }
-    });
+    await callFn('gerenciar-consultor', { acao: 'update', id, variantes: arr });
     toast('Atualizado', 'success');
     carregarConsultores();
   } catch (e) {
@@ -2345,9 +2342,8 @@ async function abrirModalConsultor() {
   const arr = vars.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   if (arr.length === 0) arr.push(nome.toLowerCase());
   try {
-    await sb('consultores', {
-      method: 'POST',
-      body: { nome, loja, genero, variantes: arr, ativo: true }
+    await callFn('gerenciar-consultor', {
+      acao: 'create', nome, loja, genero, variantes: arr, ativo: true
     });
     CACHE.invalidar();
     toast('Consultor criado', 'success');
@@ -2414,10 +2410,7 @@ async function abrirModalAmbiguo() {
   if (!loja || !LOJAS[loja]) { toast('Loja inválida', 'error'); return; }
   const motivo = prompt('Motivo (opcional, ex: "Gabriel consultor + Gabriel optometrista"):') || null;
   try {
-    await sb('nomes_ambiguos', {
-      method: 'POST',
-      body: { nome: nome.toLowerCase().trim(), loja, motivo }
-    });
+    await callFn('gerenciar-nome-ambiguo', { acao: 'create', nome, loja, motivo });
     CACHE.invalidar();
     toast('Nome ambíguo cadastrado', 'success');
     carregarAmbiguos();
@@ -2433,7 +2426,7 @@ async function abrirModalAmbiguo() {
 async function removerAmbiguo(id) {
   if (!confirm('Remover esse nome da lista de ambíguos?\nA partir de agora ele voltará a ser detectado automaticamente.')) return;
   try {
-    await sb(`nomes_ambiguos?id=eq.${id}`, { method: 'DELETE' });
+    await callFn('gerenciar-nome-ambiguo', { acao: 'delete', id });
     CACHE.invalidar();
     toast('Removido', 'success');
     carregarAmbiguos();
@@ -2447,7 +2440,9 @@ async function removerAmbiguo(id) {
 // =====================================================
 async function carregarStatusGoogle() {
   try {
-    const creds = await sb('google_credenciais?select=*&ativo=eq.true&limit=1');
+    // Chama edge function que NÃO retorna tokens sensíveis (apenas status)
+    const r = await callFn('get-google-status');
+    const creds = (r.credenciais || []).filter(c => c.ativo);
     if (!creds.length) {
       document.getElementById('google-status-detalhado').innerHTML = `
         <div class="review-info-box warning">
@@ -2614,14 +2609,15 @@ async function listarLocations() {
 
 async function alternarModoMock() {
   try {
-    const creds = await sb('google_credenciais?select=*&ativo=eq.true&limit=1');
+    const r = await callFn('get-google-status');
+    const creds = (r.credenciais || []).filter(c => c.ativo);
     if (!creds.length) { toast('Sem credenciais', 'error'); return; }
     const c = creds[0];
     const novoModo = !c.modo_mock;
     if (!confirm(`Alternar para modo ${novoModo ? 'SIMULADO (mock)' : 'REAL (produção)'}?`)) return;
-    await sb(`google_credenciais?id=eq.${c.id}`, {
-      method: 'PATCH',
-      body: { modo_mock: novoModo }
+    await callFn('gerenciar-mapeamento-google', {
+      acao: 'toggle_modo_mock',
+      modo_mock: novoModo
     });
     toast(`Modo alterado para ${novoModo ? 'simulado' : 'real'}`, 'success');
     carregarStatusGoogle();
@@ -2657,7 +2653,7 @@ async function carregarMapeamento() {
                 <td class="muted" style="font-size:12px;">${escapeHtml(m.google_location_id || '—')}</td>
                 <td>${m.ativo ? '<span class="review-tag approved"><i class="ti ti-check"></i> Ativo</span>' : '<span class="review-tag"><i class="ti ti-x"></i> Inativo</span>'}</td>
                 <td>
-                  <button class="btn btn-ghost btn-sm" onclick="editarMapeamento(${m.id}, '${escapeHtml(m.google_location_id || '')}', '${escapeHtml(m.google_account_id || '')}')" title="Editar">
+                  <button class="btn btn-ghost btn-sm" onclick="editarMapeamento('${escapeHtml(m.loja_codigo || '')}', '${escapeHtml(m.google_location_id || '')}', '${escapeHtml(m.google_account_id || '')}')" title="Editar">
                     <i class="ti ti-edit"></i>
                   </button>
                 </td>
@@ -2672,18 +2668,17 @@ async function carregarMapeamento() {
   }
 }
 
-async function editarMapeamento(id, locIdAtual, accIdAtual) {
+async function editarMapeamento(lojaCodigo, locIdAtual, accIdAtual) {
   const novoLoc = prompt('Google Location ID:', locIdAtual);
   if (novoLoc === null) return;
   const novoAcc = prompt('Google Account ID:', accIdAtual);
   if (novoAcc === null) return;
   try {
-    await sb(`google_locations_mapeamento?id=eq.${id}`, {
-      method: 'PATCH',
-      body: { 
-        google_location_id: novoLoc.trim() || null,
-        google_account_id: novoAcc.trim() || null
-      }
+    await callFn('gerenciar-mapeamento-google', {
+      acao: 'upsert_mapeamento',
+      loja_codigo: lojaCodigo,
+      google_location_id: novoLoc.trim() || null,
+      google_account_id: novoAcc.trim() || null
     });
     toast('Mapeamento atualizado', 'success');
     carregarMapeamento();
