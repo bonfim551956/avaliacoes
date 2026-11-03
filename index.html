@@ -1006,24 +1006,68 @@
 
 <script>
 // =====================================================
-// PROTEÇÃO DE ACESSO - executa antes de qualquer coisa
+// INTEGRACAO CENTRAL IDEALIZE (login unico)
+// Este sistema SO funciona dentro da Central Idealize.
+// Fora dela, redireciona pra central.oticasidealize.online.
 // =====================================================
+const CENTRAL_ORIGIN = 'https://central.oticasidealize.online';
+window.__CENTRAL_TOKEN = null;
+window.__CENTRAL_USUARIO = null;
+
 (function() {
-  const CHAVE_SESSAO = 'idealize_avaliacoes_sessao';
-  let sessao = null;
-  try {
-    const raw = localStorage.getItem(CHAVE_SESSAO) || sessionStorage.getItem(CHAVE_SESSAO);
-    sessao = raw ? JSON.parse(raw) : null;
-  } catch {}
-  
-  if (!sessao || !sessao.expiraEm || sessao.expiraEm <= Date.now()) {
-    // Não logado ou sessão expirada - manda pro login
-    localStorage.removeItem(CHAVE_SESSAO);
-    sessionStorage.removeItem(CHAVE_SESSAO);
-    window.location.href = 'login.html';
+  // Se nao esta num iframe, redireciona pra Central
+  const dentroDaCentral = window.parent !== window;
+  if (!dentroDaCentral) {
+    window.location.replace(CENTRAL_ORIGIN);
+    return;
   }
-  // Guarda pra usar depois
-  window.__SESSAO_ATIVA = sessao;
+
+  // Escuta mensagens da Central (token, saida, etc)
+  window.addEventListener('message', (e) => {
+    // Aceita so da Central
+    if (e.origin !== CENTRAL_ORIGIN) return;
+    const msg = e.data || {};
+    if (msg.tipo === 'central:token' && msg.token) {
+      const primeiraVez = !window.__CENTRAL_TOKEN;
+      window.__CENTRAL_TOKEN = msg.token;
+      // Decodifica o email do JWT (payload sem validacao - so pra exibir)
+      try {
+        const payload = JSON.parse(atob(msg.token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        window.__CENTRAL_USUARIO = { email: payload.email || '', nome: (payload.email || '').split('@')[0] };
+      } catch { window.__CENTRAL_USUARIO = { email: '', nome: 'Usuario' }; }
+      // Primeira vez: inicia o app. Depois: so renovou o token.
+      if (primeiraVez && typeof window.__INIT_APP === 'function') {
+        window.__INIT_APP();
+      }
+    }
+    if (msg.tipo === 'central:sair') {
+      // Central pediu pra encerrar — limpa tudo e para de fazer chamadas
+      window.__CENTRAL_TOKEN = null;
+      window.__CENTRAL_USUARIO = null;
+    }
+  });
+
+  // Avisa a Central que esta pronto pra receber o token
+  try { window.parent.postMessage({ tipo: 'central:pronto' }, CENTRAL_ORIGIN); } catch {}
+
+  // Envia sinal de atividade periodicamente (mantem sessao viva na Central)
+  let ultimaAtividade = 0;
+  const marcarAtividade = () => {
+    const agora = Date.now();
+    if (agora - ultimaAtividade < 30000) return;
+    ultimaAtividade = agora;
+    try { window.parent.postMessage({ tipo: 'central:atividade' }, CENTRAL_ORIGIN); } catch {}
+  };
+  ['mousedown','keydown','touchstart','scroll'].forEach(ev => {
+    window.addEventListener(ev, marcarAtividade, { passive: true });
+  });
+
+  // Se o token nao chegar em 10s, tenta pedir de novo
+  setTimeout(() => {
+    if (!window.__CENTRAL_TOKEN) {
+      try { window.parent.postMessage({ tipo: 'central:pronto' }, CENTRAL_ORIGIN); } catch {}
+    }
+  }, 10000);
 })();
 </script>
 
@@ -1121,17 +1165,26 @@ async function sbCount(path) {
 }
 
 async function callFn(nome, body = {}) {
+  // Usa o token da Central Idealize (login unico). Se nao existe, usuario nao esta autenticado.
+  const token = window.__CENTRAL_TOKEN;
+  if (!token) {
+    throw new Error('Sessao nao autenticada. Entre pela Central Idealize.');
+  }
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${nome}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': `Bearer ${token}`,
       'apikey': SUPABASE_KEY
     },
     body: JSON.stringify(body)
   });
   let data = null;
   try { data = await res.json(); } catch { data = null; }
+  // 401 da Central: pede novo token
+  if (res.status === 401) {
+    try { window.parent.postMessage({ tipo: 'central:pronto' }, CENTRAL_ORIGIN); } catch {}
+  }
   // Edge function retornou {sucesso:false,...}? Lança erro pro catch
   if (data && data.sucesso === false) {
     const msg = data.erro || data.mensagem || `Edge function ${nome} falhou`;
@@ -2815,28 +2868,30 @@ async function sincronizarAgora() {
 }
 
 // =====================================================
-// AUTENTICAÇÃO
+// AUTENTICACAO - via Central Idealize (login unico)
 // =====================================================
 function fazerLogout() {
   if (!confirm('Deseja realmente sair?')) return;
-  localStorage.removeItem('idealize_avaliacoes_sessao');
-  sessionStorage.removeItem('idealize_avaliacoes_sessao');
-  window.location.href = 'login.html';
+  // Avisa a Central pra encerrar a sessao em todos os sistemas
+  try { window.parent.postMessage({ tipo: 'central:sair-pedido' }, CENTRAL_ORIGIN); } catch {}
 }
 
 // =====================================================
-// INIT
+// INIT - so dispara DEPOIS que recebe o token da Central
 // =====================================================
-window.addEventListener('DOMContentLoaded', () => {
-  // Mostra nome do usuário logado
-  if (window.__SESSAO_ATIVA && window.__SESSAO_ATIVA.usuario) {
-    document.getElementById('user-nome').textContent = window.__SESSAO_ATIVA.usuario;
-  }
+let appJaIniciado = false;
+window.__INIT_APP = function() {
+  if (appJaIniciado) return;
+  appJaIniciado = true;
+  // Mostra o nome do usuario (vem da Central)
+  const nome = (window.__CENTRAL_USUARIO && window.__CENTRAL_USUARIO.nome) || 'Usuario';
+  const el = document.getElementById('user-nome');
+  if (el) el.textContent = nome;
   carregarDashboard();
   carregarStatusGoogle();
   atualizarBadges();
   setInterval(atualizarBadges, 60000);
-});
+};
 </script>
 </body>
 </html>
