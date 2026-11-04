@@ -174,6 +174,7 @@
     margin-left: 4px;
   }
   .badge.hidden { display: none; }
+  .hidden { display: none !important; }
   
   /* ===== MAIN ===== */
   .main {
@@ -684,6 +685,10 @@
     <button class="tab-btn" onclick="trocarTab('google')">
       <i class="ti ti-brand-google"></i> Integração
     </button>
+    <button class="tab-btn" onclick="trocarTab('logs')">
+      <i class="ti ti-timeline"></i> Logs
+      <span class="badge hidden" id="badge-logs">0</span>
+    </button>
   </div>
 </div>
 
@@ -1000,6 +1005,79 @@
     </div>
   </div>
 
+  <!-- TAB: LOGS E AUDITORIA -->
+  <div id="tab-logs" class="tab-content">
+    <!-- Dashboard de saude 24h -->
+    <div class="kpi-grid" style="margin-bottom: 20px;">
+      <div class="kpi">
+        <div class="kpi-label"><i class="ti ti-download" style="color: var(--teal);"></i> Buscas 24h</div>
+        <div class="kpi-value" id="log-stat-buscas">—</div>
+        <div class="kpi-hint" id="log-stat-buscas-sub">Google</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label"><i class="ti ti-send" style="color: var(--teal);"></i> Envios 24h</div>
+        <div class="kpi-value" id="log-stat-envios">—</div>
+        <div class="kpi-hint" id="log-stat-envios-sub">Respostas</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label"><i class="ti ti-user" style="color: var(--orange);"></i> Ações admin 24h</div>
+        <div class="kpi-value" id="log-stat-acoes">—</div>
+        <div class="kpi-hint">Alterações</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label"><i class="ti ti-alert-triangle" style="color: var(--danger);"></i> Erros 24h</div>
+        <div class="kpi-value" id="log-stat-erros" style="color: var(--danger);">—</div>
+        <div class="kpi-hint">Total</div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-card">
+      <div class="filters-row">
+        <span class="filter-label">Tipo</span>
+        <button class="filter-pill active" data-log-tipo="tudo" onclick="filtrarLogsTipo('tudo')">Tudo</button>
+        <button class="filter-pill" data-log-tipo="tecnico" onclick="filtrarLogsTipo('tecnico')">Sistema</button>
+        <button class="filter-pill" data-log-tipo="admin" onclick="filtrarLogsTipo('admin')">Ações admin</button>
+        <button class="filter-pill" data-log-tipo="erro" onclick="filtrarLogsTipo('erro')">Só erros</button>
+      </div>
+      <div class="filters-row">
+        <span class="filter-label">Loja</span>
+        <button class="filter-pill active" data-log-loja="" onclick="filtrarLogsLoja('')">Todas</button>
+        <button class="filter-pill" data-log-loja="sao_vicente" onclick="filtrarLogsLoja('sao_vicente')">São Vicente</button>
+        <button class="filter-pill" data-log-loja="campinas" onclick="filtrarLogsLoja('campinas')">Campinas</button>
+        <button class="filter-pill" data-log-loja="piracicaba" onclick="filtrarLogsLoja('piracicaba')">Piracicaba</button>
+        <button class="filter-pill" data-log-loja="sorocaba" onclick="filtrarLogsLoja('sorocaba')">Sorocaba</button>
+      </div>
+      <div class="filters-row">
+        <span class="filter-label">Período</span>
+        <button class="filter-pill active" data-log-periodo="24h" onclick="filtrarLogsPeriodo('24h')">24h</button>
+        <button class="filter-pill" data-log-periodo="hoje" onclick="filtrarLogsPeriodo('hoje')">Hoje</button>
+        <button class="filter-pill" data-log-periodo="7d" onclick="filtrarLogsPeriodo('7d')">7 dias</button>
+        <button class="filter-pill" data-log-periodo="30d" onclick="filtrarLogsPeriodo('30d')">30 dias</button>
+      </div>
+      <div class="filters-row">
+        <input type="text" id="log-busca" placeholder="Buscar por nome, email, consultor, erro..." style="flex: 1; min-width: 240px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 14px; font-family: inherit;" oninput="debounceLogs()">
+        <button class="btn btn-secondary btn-sm" onclick="carregarLogs()"><i class="ti ti-refresh"></i> Atualizar</button>
+      </div>
+    </div>
+
+    <!-- Lista de eventos -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title"><i class="ti ti-timeline"></i> Timeline</h2>
+        <span id="log-contador" style="font-size: 13px; color: var(--text-muted);">—</span>
+      </div>
+      <div id="lista-logs">
+        <div class="loading"><span class="spinner"></span> Carregando logs...</div>
+      </div>
+      <div style="padding: 16px; text-align: center;">
+        <button id="btn-mais-logs" class="btn btn-ghost btn-sm hidden" onclick="carregarMaisLogs()">
+          <i class="ti ti-chevrons-down"></i> Carregar mais
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="toast-container" id="toasts"></div>
@@ -1276,6 +1354,7 @@ function trocarTab(nome) {
   if (nome === 'tratativas') carregarTratativas();
   if (nome === 'consultores') { carregarConsultores(); carregarAmbiguos(); }
   if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
+  if (nome === 'logs') carregarLogs();
 }
 
 // Botão de refresh manual (força recarregar ignorando cache)
@@ -1291,6 +1370,7 @@ function forcarRecarregar() {
     else if (nome === 'tratativas') carregarTratativas();
     else if (nome === 'consultores') { carregarConsultores(); carregarAmbiguos(); }
     else if (nome === 'google') { carregarStatusGoogle(); carregarMapeamento(); carregarLogSync(); }
+    else if (nome === 'logs') carregarLogs();
   }
   atualizarBadges();
   toast('Dados atualizados', 'success');
@@ -2879,6 +2959,188 @@ async function sincronizarAgora() {
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
+}
+
+// =====================================================
+// LOGS E AUDITORIA
+// =====================================================
+let logsFiltroTipo = 'tudo';
+let logsFiltroLoja = '';
+let logsFiltroPeriodo = '24h';
+let logsFiltroBusca = '';
+let logsOffset = 0;
+let logsTotal = 0;
+let logsBuscaDebounceTimer = null;
+
+function debounceLogs() {
+  clearTimeout(logsBuscaDebounceTimer);
+  logsBuscaDebounceTimer = setTimeout(() => {
+    logsFiltroBusca = document.getElementById('log-busca').value.trim();
+    logsOffset = 0;
+    carregarLogs();
+  }, 400);
+}
+
+function filtrarLogsTipo(t) {
+  logsFiltroTipo = t;
+  document.querySelectorAll('[data-log-tipo]').forEach(b => b.classList.toggle('active', b.getAttribute('data-log-tipo') === t));
+  logsOffset = 0;
+  carregarLogs();
+}
+function filtrarLogsLoja(l) {
+  logsFiltroLoja = l;
+  document.querySelectorAll('[data-log-loja]').forEach(b => b.classList.toggle('active', b.getAttribute('data-log-loja') === l));
+  logsOffset = 0;
+  carregarLogs();
+}
+function filtrarLogsPeriodo(p) {
+  logsFiltroPeriodo = p;
+  document.querySelectorAll('[data-log-periodo]').forEach(b => b.classList.toggle('active', b.getAttribute('data-log-periodo') === p));
+  logsOffset = 0;
+  carregarLogs();
+}
+
+function calcularDesdeLogs() {
+  const agora = new Date();
+  if (logsFiltroPeriodo === '24h') return new Date(agora.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  if (logsFiltroPeriodo === 'hoje') { const d = new Date(agora); d.setHours(0,0,0,0); return d.toISOString(); }
+  if (logsFiltroPeriodo === '7d') return new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  if (logsFiltroPeriodo === '30d') return new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  return null;
+}
+
+async function carregarLogs() {
+  const lista = document.getElementById('lista-logs');
+  if (logsOffset === 0) lista.innerHTML = '<div class="loading"><span class="spinner"></span> Carregando logs...</div>';
+  try {
+    const r = await callFn('get-logs', {
+      tipo: logsFiltroTipo,
+      loja: logsFiltroLoja || null,
+      busca: logsFiltroBusca || null,
+      desde: calcularDesdeLogs(),
+      limite: 50,
+      offset: logsOffset
+    });
+    // Atualiza cards de resumo
+    const stats = r.resumo_24h || {};
+    document.getElementById('log-stat-buscas').textContent = stats.buscas_ok || 0;
+    document.getElementById('log-stat-buscas-sub').textContent = stats.buscas_erro > 0 ? `${stats.buscas_erro} erro${stats.buscas_erro > 1 ? 's' : ''}` : 'tudo OK';
+    document.getElementById('log-stat-envios').textContent = stats.envios_ok || 0;
+    document.getElementById('log-stat-envios-sub').textContent = stats.envios_erro > 0 ? `${stats.envios_erro} erro${stats.envios_erro > 1 ? 's' : ''}` : 'tudo OK';
+    document.getElementById('log-stat-acoes').textContent = stats.acoes_admin || 0;
+    document.getElementById('log-stat-erros').textContent = stats.erros_total || 0;
+
+    logsTotal = r.total || 0;
+    document.getElementById('log-contador').textContent = `${logsTotal} evento${logsTotal !== 1 ? 's' : ''}`;
+
+    const eventos = r.eventos || [];
+    if (logsOffset === 0 && eventos.length === 0) {
+      lista.innerHTML = '<div class="empty"><i class="ti ti-timeline"></i><h3>Nenhum evento</h3><p>Nada encontrado neste período com os filtros atuais.</p></div>';
+      document.getElementById('btn-mais-logs').classList.add('hidden');
+      return;
+    }
+    const html = eventos.map(renderEventoLog).join('');
+    if (logsOffset === 0) lista.innerHTML = html;
+    else lista.insertAdjacentHTML('beforeend', html);
+
+    const btnMais = document.getElementById('btn-mais-logs');
+    if (logsOffset + eventos.length < logsTotal) btnMais.classList.remove('hidden');
+    else btnMais.classList.add('hidden');
+  } catch (e) {
+    lista.innerHTML = `<div class="empty"><i class="ti ti-alert-triangle" style="color: var(--danger);"></i><h3>Erro ao carregar</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function carregarMaisLogs() {
+  logsOffset += 50;
+  carregarLogs();
+}
+
+function renderEventoLog(ev) {
+  const dt = new Date(ev.quando);
+  const hora = dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const isErro = ev.resultado === 'erro';
+  const isAdmin = ev.origem === 'admin';
+  const corBorda = isErro ? 'var(--danger)' : isAdmin ? 'var(--orange)' : 'var(--teal)';
+  const icone = isErro ? 'ti-alert-triangle' : isAdmin ? 'ti-user' : 'ti-robot';
+  const corIcone = isErro ? 'var(--danger)' : isAdmin ? 'var(--orange)' : 'var(--teal)';
+  const detId = `det-${ev.id}`;
+  const titulo = formatarAcaoLog(ev);
+  const subtitulo = formatarSubtitulo(ev);
+  return `
+    <div style="border-left: 3px solid ${corBorda}; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer;" onclick="toggleDetLog('${detId}')">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <i class="ti ${icone}" style="font-size: 20px; color: ${corIcone};"></i>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="font-weight: 600; color: var(--text);">${titulo}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">${hora}</div>
+          </div>
+          ${subtitulo ? `<div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">${subtitulo}</div>` : ''}
+        </div>
+      </div>
+      <div id="${detId}" class="hidden" style="margin-top: 12px; padding: 12px; background: var(--teal-bg); border-radius: var(--radius-sm); font-size: 12px; font-family: 'Monaco', monospace; white-space: pre-wrap; word-break: break-word; color: var(--text);">
+${ev.erro ? '<b style="color: var(--danger);">Erro:</b> ' + escapeHtml(ev.erro) + '\\n\\n' : ''}${escapeHtml(JSON.stringify(ev.detalhes || {}, null, 2))}
+      </div>
+    </div>
+  `;
+}
+
+function toggleDetLog(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('hidden');
+}
+
+const LOJA_LABEL = { sao_vicente: 'São Vicente', campinas: 'Campinas', piracicaba: 'Piracicaba', sorocaba: 'Sorocaba', geral: 'Geral', all: 'Todas' };
+const ACOES_LABEL = {
+  // Tecnico
+  'cron_completo': 'Ciclo automático completo',
+  'buscar': 'Busca no Google',
+  'enviar_resposta': 'Resposta enviada ao Google',
+  'oauth_callback': 'Conta Google conectada',
+  'listar_locations': 'Listagem de perfis Google',
+  // Admin
+  'consultor_criado': 'Consultor criado',
+  'consultor_atualizado': 'Consultor atualizado',
+  'consultor_ativado': 'Consultor ativado',
+  'consultor_desativado': 'Consultor desativado',
+  'consultor_removido': 'Consultor removido',
+  'nome_ambiguo_adicionado': 'Nome ambíguo adicionado',
+  'nome_ambiguo_removido': 'Nome ambíguo removido',
+  'deteccao_aprovada': 'Detecção aprovada',
+  'deteccao_corrigida': 'Detecção corrigida',
+  'deteccao_rejeitada': 'Detecção rejeitada',
+  'consultor_alterado_manualmente': 'Consultor alterado manualmente',
+  'consultor_removido_da_avaliacao': 'Consultor removido da avaliação',
+  'tratativa_atualizada': 'Tratativa atualizada',
+  'tratativa_resposta_enviada': 'Tratativa — resposta enviada',
+  'tratativa_ignorada': 'Tratativa ignorada',
+  'avaliacao_manual_criada': 'Avaliação manual criada',
+  'mapeamento_google_salvo': 'Mapeamento Google salvo',
+  'mapeamento_google_removido': 'Mapeamento Google removido',
+  'modo_mock_ativado': 'Modo simulado ativado',
+  'modo_real_ativado': 'Modo real ativado',
+  'google_desconectado': 'Google desconectado'
+};
+function formatarAcaoLog(ev) {
+  return ACOES_LABEL[ev.acao] || ev.acao;
+}
+function formatarSubtitulo(ev) {
+  const partes = [];
+  if (ev.loja) partes.push(LOJA_LABEL[ev.loja] || ev.loja);
+  if (ev.origem === 'admin' && ev.usuario_nome) partes.push(`por ${ev.usuario_nome}`);
+  if (ev.origem === 'admin' && !ev.usuario_nome && ev.usuario_email) partes.push(`por ${ev.usuario_email}`);
+  const d = ev.detalhes || {};
+  if (d.cliente_nome) partes.push(`cliente: ${d.cliente_nome}`);
+  if (d.nome && ev.entidade === 'consultor') partes.push(`consultor: ${d.nome}`);
+  if (typeof d.total_novas === 'number') partes.push(`${d.total_novas} nova${d.total_novas !== 1 ? 's' : ''}`);
+  if (typeof d.total_enviadas === 'number') partes.push(`${d.total_enviadas} enviada${d.total_enviadas !== 1 ? 's' : ''}`);
+  if (d.novas && !d.total_novas) partes.push(`${d.novas} nova${d.novas !== 1 ? 's' : ''}`);
+  return partes.join(' · ');
+}
+function escapeHtml(s) {
+  if (typeof s !== 'string') return String(s || '');
+  return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 // =====================================================
