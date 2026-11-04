@@ -1008,24 +1008,31 @@
 // =====================================================
 // INTEGRACAO CENTRAL IDEALIZE (login unico)
 // Este sistema SO funciona dentro da Central Idealize.
-// Fora dela, redireciona pra central.oticasidealize.online.
+// Fora dela, redireciona pra Central.
+// Aceita ambas origens: Vercel direto e dominio customizado futuro.
 // =====================================================
-const CENTRAL_ORIGIN = 'https://central.oticasidealize.online';
+const CENTRAL_ORIGINS_ACEITAS = [
+  'https://central-idealize.vercel.app',
+  'https://central.oticasidealize.online'
+];
+const CENTRAL_URL_PRINCIPAL = 'https://central-idealize.vercel.app';
 window.__CENTRAL_TOKEN = null;
 window.__CENTRAL_USUARIO = null;
+window.__CENTRAL_ORIGIN_ATIVA = null; // guarda qual origem esta respondendo
 
 (function() {
   // Se nao esta num iframe, redireciona pra Central
   const dentroDaCentral = window.parent !== window;
   if (!dentroDaCentral) {
-    window.location.replace(CENTRAL_ORIGIN);
+    window.location.replace(CENTRAL_URL_PRINCIPAL);
     return;
   }
 
   // Escuta mensagens da Central (token, saida, etc)
   window.addEventListener('message', (e) => {
-    // Aceita so da Central
-    if (e.origin !== CENTRAL_ORIGIN) return;
+    // Aceita so das origens conhecidas da Central
+    if (!CENTRAL_ORIGINS_ACEITAS.includes(e.origin)) return;
+    window.__CENTRAL_ORIGIN_ATIVA = e.origin;
     const msg = e.data || {};
     if (msg.tipo === 'central:token' && msg.token) {
       const primeiraVez = !window.__CENTRAL_TOKEN;
@@ -1041,14 +1048,19 @@ window.__CENTRAL_USUARIO = null;
       }
     }
     if (msg.tipo === 'central:sair') {
-      // Central pediu pra encerrar — limpa tudo e para de fazer chamadas
       window.__CENTRAL_TOKEN = null;
       window.__CENTRAL_USUARIO = null;
     }
   });
 
   // Avisa a Central que esta pronto pra receber o token
-  try { window.parent.postMessage({ tipo: 'central:pronto' }, CENTRAL_ORIGIN); } catch {}
+  // Tenta todas as origens aceitas (so a certa vai receber)
+  const pedirToken = () => {
+    for (const origem of CENTRAL_ORIGINS_ACEITAS) {
+      try { window.parent.postMessage({ tipo: 'central:pronto' }, origem); } catch {}
+    }
+  };
+  pedirToken();
 
   // Envia sinal de atividade periodicamente (mantem sessao viva na Central)
   let ultimaAtividade = 0;
@@ -1056,18 +1068,18 @@ window.__CENTRAL_USUARIO = null;
     const agora = Date.now();
     if (agora - ultimaAtividade < 30000) return;
     ultimaAtividade = agora;
-    try { window.parent.postMessage({ tipo: 'central:atividade' }, CENTRAL_ORIGIN); } catch {}
+    const origem = window.__CENTRAL_ORIGIN_ATIVA;
+    if (!origem) return;
+    try { window.parent.postMessage({ tipo: 'central:atividade' }, origem); } catch {}
   };
   ['mousedown','keydown','touchstart','scroll'].forEach(ev => {
     window.addEventListener(ev, marcarAtividade, { passive: true });
   });
 
-  // Se o token nao chegar em 10s, tenta pedir de novo
-  setTimeout(() => {
-    if (!window.__CENTRAL_TOKEN) {
-      try { window.parent.postMessage({ tipo: 'central:pronto' }, CENTRAL_ORIGIN); } catch {}
-    }
-  }, 10000);
+  // Se o token nao chegar em 2s, tenta pedir de novo (retry mais agressivo)
+  setTimeout(() => { if (!window.__CENTRAL_TOKEN) pedirToken(); }, 2000);
+  setTimeout(() => { if (!window.__CENTRAL_TOKEN) pedirToken(); }, 5000);
+  setTimeout(() => { if (!window.__CENTRAL_TOKEN) pedirToken(); }, 10000);
 })();
 </script>
 
@@ -1183,7 +1195,9 @@ async function callFn(nome, body = {}) {
   try { data = await res.json(); } catch { data = null; }
   // 401 da Central: pede novo token
   if (res.status === 401) {
-    try { window.parent.postMessage({ tipo: 'central:pronto' }, CENTRAL_ORIGIN); } catch {}
+    for (const origem of CENTRAL_ORIGINS_ACEITAS) {
+      try { window.parent.postMessage({ tipo: 'central:pronto' }, origem); } catch {}
+    }
   }
   // Edge function retornou {sucesso:false,...}? Lança erro pro catch
   if (data && data.sucesso === false) {
@@ -2873,7 +2887,8 @@ async function sincronizarAgora() {
 function fazerLogout() {
   if (!confirm('Deseja realmente sair?')) return;
   // Avisa a Central pra encerrar a sessao em todos os sistemas
-  try { window.parent.postMessage({ tipo: 'central:sair-pedido' }, CENTRAL_ORIGIN); } catch {}
+  const origem = window.__CENTRAL_ORIGIN_ATIVA || CENTRAL_URL_PRINCIPAL;
+  try { window.parent.postMessage({ tipo: 'central:sair-pedido' }, origem); } catch {}
 }
 
 // =====================================================
