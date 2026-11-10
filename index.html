@@ -1093,7 +1093,7 @@ const CENTRAL_ORIGINS_ACEITAS = [
   'https://central-idealize.vercel.app',
   'https://central.oticasidealize.online'
 ];
-const CENTRAL_URL_PRINCIPAL = 'https://central-idealize.vercel.app';
+const CENTRAL_URL_PRINCIPAL = 'https://central.oticasidealize.online';
 window.__CENTRAL_TOKEN = null;
 window.__CENTRAL_USUARIO = null;
 window.__CENTRAL_ORIGIN_ATIVA = null; // guarda qual origem esta respondendo
@@ -1102,7 +1102,7 @@ window.__CENTRAL_ORIGIN_ATIVA = null; // guarda qual origem esta respondendo
   // Se nao esta num iframe, redireciona pra Central
   const dentroDaCentral = window.parent !== window;
   if (!dentroDaCentral) {
-    window.location.replace(CENTRAL_URL_PRINCIPAL);
+    window.location.replace(CENTRAL_URL_PRINCIPAL + '/s/avaliacoes');
     return;
   }
 
