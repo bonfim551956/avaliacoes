@@ -2741,25 +2741,38 @@ window.addEventListener('focus', () => {
 
 async function testarConexao() {
   const box = document.getElementById('teste-conexao-resultado');
-  box.innerHTML = '<div class="loading"><span class="spinner"></span> Testando...</div>';
+  box.innerHTML = '<div class="loading"><span class="spinner"></span> Testando conexão com o Google...</div>';
   try {
-    const r = await callFn('testar-reviews', {});
-    if (r.sucesso) {
+    // Edge dedicada ao health check: credencial, scope, refresh, chamada real a API
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/testar-conexao-google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.__CENTRAL_TOKEN}`, 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({})
+    });
+    const data = await r.json().catch(() => ({}));
+    if (data.sucesso) {
       box.innerHTML = `
         <div class="review-info-box suggestion">
           <i class="ti ti-check"></i>
-          <div><strong>Conexão OK!</strong> ${r.mensagem || 'API respondendo normalmente.'}</div>
+          <div>
+            <strong>Conexão OK!</strong> ${escapeHtml(data.mensagem || 'API respondendo normalmente.')}
+            ${data.detalhes?.token_renovado ? '<br><span style="font-size:12px; color:var(--text-muted);">Token foi renovado automaticamente agora.</span>' : ''}
+          </div>
         </div>
       `;
       toast('Conexão funcionando', 'success');
     } else {
+      const etapaLabel = { credencial: 'Credencial', scope: 'Permissão (scope)', modo_mock: 'Modo', refresh: 'Renovação de token', api_google: 'API do Google', excecao: 'Erro interno' }[data.etapa] || 'Erro';
       box.innerHTML = `
         <div class="review-info-box warning">
           <i class="ti ti-x"></i>
-          <div><strong>Falhou:</strong> ${escapeHtml(r.erro || r.mensagem || 'Erro desconhecido')}</div>
+          <div>
+            <strong>${etapaLabel}:</strong> ${escapeHtml(data.mensagem || data.erro || 'Erro desconhecido')}
+            ${data.detalhes ? `<br><span style="font-size:12px; color:var(--text-muted); font-family:monospace;">${escapeHtml(JSON.stringify(data.detalhes))}</span>` : ''}
+          </div>
         </div>
       `;
-      toast('Falha no teste', 'error');
+      toast('Falha no teste — veja o detalhe', 'error');
     }
   } catch (e) {
     box.innerHTML = `<div class="review-info-box warning"><i class="ti ti-x"></i><div>Erro: ${escapeHtml(e.message)}</div></div>`;
